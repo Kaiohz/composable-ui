@@ -1,4 +1,4 @@
-import { useCallback, memo, useMemo } from "react";
+import { useCallback, memo, useMemo, useState } from "react";
 import { useForm, useFieldArray, useWatch, type Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { AgentConfig, SubAgentConfig } from "@/domain/entities/agent/agentConfig";
@@ -6,7 +6,7 @@ import { BackendType } from "@/domain/entities/agent/agentConfig";
 import { McpTransportType } from "@/domain/entities/agent/mcpServerConfig";
 import type { McpServerConfig } from "@/domain/entities/agent/mcpServerConfig";
 import {
-  agentConfigSchema,
+  agentConfigFormSchema,
   type AgentConfigFormData,
   type AgentConfigFormInput,
 } from "@/domain/entities/agent/agentConfigSchema";
@@ -31,11 +31,15 @@ import PillMultiSelect, {
   type PillMultiSelectOption,
 } from "@/application/components/shared/PillMultiSelect";
 import { SkillPillMultiSelect, MemoryPillMultiSelect } from "./SkillMemorySelects";
+import SegmentedToggle from "@/application/components/shared/SegmentedToggle";
 import SubAgentEditor from "./SubAgentEditor";
 import HITLEditor from "./HITLEditor";
 import ResponseFormatEditor from "./ResponseFormatEditor";
 import { useMcpRegistry } from "@/application/hooks/mcpServer/useMcpRegistry";
 import { useAgents } from "@/application/hooks/agent/useAgents";
+import { usePrompts } from "@/application/hooks/prompt/usePrompts";
+import { usePromptVersions } from "@/application/hooks/prompt/usePromptVersions";
+import { useModels } from "@/application/hooks/model/useModels";
 import { mcpRegistryApi } from "@/infrastructure/api/mcpServer/mcpRegistryApi";
 import { AGENT_CONFIG_FORM_ID as FORM_ID } from "./formConstants";
 
@@ -53,7 +57,7 @@ const DEFAULT_OPEN_SECTIONS: SectionValue[] = ["general", "system-prompt"];
 
 const SECTION_META: Record<SectionValue, { label: string }> = {
   general: { label: "General" },
-  "system-prompt": { label: "System Prompt" },
+  "system-prompt": { label: "Prompt Source" },
   backend: { label: "Backend" },
   hitl: { label: "HITL" },
   "memory-skills": { label: "Memory & Skills" },
@@ -67,7 +71,79 @@ const BACKEND_STORAGE_OPTIONS: { label: string; value: "memory" | "postgres" }[]
   { value: "postgres", label: "postgres" },
 ];
 
-const DEFAULT_FORM_VALUES: AgentConfigFormData = {
+type PromptSourceMode = "registry" | "inline" | "file";
+type ModelSourceMode = "catalog" | "custom";
+type PromptVersionMode = "latest" | "pinned";
+
+/**
+ * Source-mode selections kept outside the YAML payload. On submit they are
+ * merged into the validated values, and the mutually exclusive legacy fields
+ * of the inactive mode are cleared (spec §AGT-004.7).
+ */
+interface SourceModeState {
+  promptMode: PromptSourceMode;
+  promptId: string;
+  versionMode: PromptVersionMode;
+  promptVersion: number | undefined;
+  modelMode: ModelSourceMode;
+  modelRefId: string;
+}
+
+function deriveSourceModeState(initialData?: AgentConfig): SourceModeState {
+  const modelRef = initialData?.model_ref;
+  if (initialData?.prompt_ref) {
+    return {
+      promptMode: "registry",
+      promptId: initialData.prompt_ref.id,
+      versionMode: initialData.prompt_ref.version != null ? "pinned" : "latest",
+      promptVersion: initialData.prompt_ref.version,
+      modelMode: modelRef ? "catalog" : "custom",
+      modelRefId: modelRef ?? "",
+    };
+  }
+  return {
+    promptMode: initialData?.system_prompt_file ? "file" : "inline",
+    promptId: "",
+    versionMode: "latest",
+    promptVersion: undefined,
+    modelMode: modelRef ? "catalog" : "custom",
+    modelRefId: modelRef ?? "",
+  };
+}
+
+/** Registry-prompt payload for the selected source mode. */
+function promptRefFrom(state: SourceModeState): { id: string; version?: number } | undefined {
+  if (state.promptMode !== "registry" || !state.promptId) return undefined;
+  const pinned =
+    state.versionMode === "pinned" && state.promptVersion != null ? state.promptVersion : undefined;
+  return { id: state.promptId, version: pinned };
+}
+
+/** Merge raw form values with the mode selections before validation. */
+function buildValidatedValues(
+  values: AgentConfigFormInput,
+  state: SourceModeState,
+): AgentConfigFormInput {
+  const promptRef = promptRefFrom(state);
+  const modelRef = state.modelMode === "catalog" && state.modelRefId ? state.modelRefId : undefined;
+  return {
+    ...values,
+    // Only the ACTIVE prompt source is submitted; the inactive legacy
+    // fields are cleared so switching modes never trips the exclusivity
+    // rule (spec §AGT-004.7).
+    system_prompt: state.promptMode === "inline" ? values.system_prompt || undefined : undefined,
+    system_prompt_file:
+      state.promptMode === "file" ? values.system_prompt_file || undefined : undefined,
+    model: state.modelMode === "catalog" ? undefined : values.model || undefined,
+    prompt_ref: promptRef,
+    model_ref: modelRef,
+    response_format: values.response_format ?? undefined,
+  };
+}
+
+const zodValidate = zodResolver(agentConfigFormSchema);
+
+const DEFAULT_FORM_VALUES: AgentConfigFormInput = {
   name: "",
   model: "",
   system_prompt: "",
@@ -86,13 +162,19 @@ const DEFAULT_FORM_VALUES: AgentConfigFormData = {
   debug: false,
 };
 
-function getDefaultValues(mode: "create" | "edit", initialData?: AgentConfig): AgentConfigFormData {
+function getDefaultValues(
+  mode: "create" | "edit",
+  initialData?: AgentConfig,
+): AgentConfigFormInput {
   if (mode === "edit" && initialData) {
     return {
       ...DEFAULT_FORM_VALUES,
       ...initialData,
+      model: initialData.model ?? "",
       system_prompt: initialData.system_prompt ?? "",
       system_prompt_file: initialData.system_prompt_file ?? "",
+      prompt_ref: undefined,
+      model_ref: undefined,
       response_format: initialData.response_format ?? undefined,
     };
   }
@@ -114,6 +196,10 @@ export default function AgentConfigForm({
   onCancel,
   isPending = false,
 }: Readonly<AgentConfigFormProps>) {
+  const [sourceState, setSourceState] = useState<SourceModeState>(() =>
+    deriveSourceModeState(initialData),
+  );
+
   const {
     register,
     handleSubmit,
@@ -121,7 +207,12 @@ export default function AgentConfigForm({
     setValue,
     formState: { errors },
   } = useForm<AgentConfigFormInput, unknown, AgentConfigFormData>({
-    resolver: zodResolver(agentConfigSchema),
+    // The resolver merges the latest source-mode selections (kept in render
+    // state, read from the freshest render scope) into the validated values
+    // and clears mutually exclusive legacy fields before validation
+    // (spec §AGT-004.7).
+    resolver: (values, context, options) =>
+      zodValidate(buildValidatedValues(values, sourceState), context, options),
     defaultValues: getDefaultValues(mode, initialData),
   });
 
@@ -131,14 +222,55 @@ export default function AgentConfigForm({
   const currentAgentName = useWatch({ control, name: "name" });
   const { data: existingAgents } = useAgents();
 
+  const {
+    data: promptCatalog,
+    isLoading: promptsLoading,
+    isError: promptsError,
+    error: promptsErrorValue,
+    refetch: refetchPrompts,
+  } = usePrompts();
+  const {
+    data: modelCatalog,
+    isLoading: modelsLoading,
+    isError: modelsError,
+    error: modelsErrorValue,
+    refetch: refetchModels,
+  } = useModels();
+  const versionsQuery = usePromptVersions(
+    sourceState.promptMode === "registry" && sourceState.promptId ? sourceState.promptId : null,
+    { enabled: sourceState.promptMode === "registry" },
+  );
+  const versionOptions = useMemo(() => {
+    return (versionsQuery.data ?? [])
+      .slice()
+      .sort((a, b) => a.version - b.version)
+      .map((v) => ({ value: String(v.version), label: `v${v.version}` }));
+  }, [versionsQuery.data]);
+
+  function patchSourceState(patch: Partial<SourceModeState>) {
+    setSourceState((prev) => ({ ...prev, ...patch }));
+  }
+
+  function handlePromptModeChange(next: PromptSourceMode) {
+    patchSourceState({ promptMode: next });
+    // Clear the newly inactive prompt fields from the form state so the UI
+    // never carries a stale value that trips the exclusivity rule on submit
+    // (spec §AGT-004.7). The serializer additionally clears per submit.
+    if (next !== "inline") setValue("system_prompt", undefined);
+    if (next !== "file") setValue("system_prompt_file", undefined);
+  }
+
+  function handleModelModeChange(next: ModelSourceMode) {
+    patchSourceState({ modelMode: next });
+    // Switching to the catalog clears the legacy custom model string; switching
+    // back to custom starts from an empty model input.
+    if (next === "catalog") setValue("model", undefined);
+  }
+
   function handleFormSubmit(data: AgentConfigFormData) {
-    const cleaned: AgentConfigFormData = {
-      ...data,
-      system_prompt: data.system_prompt || undefined,
-      system_prompt_file: data.system_prompt_file || undefined,
-      response_format: data.response_format ?? undefined,
-    };
-    onSubmit(cleaned);
+    // `data` already carries the mode-selected prompt_ref/model_ref and the
+    // cleared mutually exclusive fields (resolver merged them in).
+    onSubmit(data);
   }
 
   function addFromExistingAgent(agentName: string) {
@@ -185,22 +317,179 @@ export default function AgentConfigForm({
                 autoComplete="off"
               />
             </FormField>
-            <FormField id="model" label="Model" error={errors.model?.message}>
-              <Input
-                id="model"
-                {...register("model")}
-                placeholder="openai:anthropic/claude-haiku-4.5:nitro"
-                autoComplete="off"
-                spellCheck={false}
-                aria-invalid={!!errors.model}
+            <div className="space-y-2">
+              <Label className="block text-xs uppercase tracking-[0.1em]">Model Source</Label>
+              <SegmentedToggle
+                value={sourceState.modelMode}
+                options={[
+                  { value: "catalog" as const, label: "Catalog model" },
+                  { value: "custom" as const, label: "Custom model" },
+                ]}
+                onChange={(v) => handleModelModeChange(v as ModelSourceMode)}
+                pattern="radio"
+                ariaLabel="Model Source"
               />
-            </FormField>
+              {sourceState.modelMode === "catalog" ? (
+                <div className="space-y-2">
+                  {modelsError && (
+                    <RegistryErrorStrip
+                      odId="model-registry-error"
+                      error={modelsErrorValue}
+                      onRetry={() => void refetchModels()}
+                    />
+                  )}
+                  <FormField id="model-select" label="Model" error={errors.model?.message}>
+                    <Select
+                      value={sourceState.modelRefId || undefined}
+                      onValueChange={(v) => patchSourceState({ modelRefId: v })}
+                    >
+                      <SelectTrigger
+                        id="model-select"
+                        className="w-full"
+                        aria-invalid={!!errors.model || undefined}
+                      >
+                        <SelectValue placeholder="Select a catalog model…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(modelCatalog ?? []).map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {(modelCatalog ?? []).length === 0 && !modelsError && !modelsLoading && (
+                      <p className="font-mono text-xs text-muted">
+                        No catalog models yet. Create one in the Models page first.
+                      </p>
+                    )}
+                    {modelsLoading && !modelsError && (
+                      <p className="font-mono text-xs text-muted" aria-live="polite">
+                        Loading model catalog…
+                      </p>
+                    )}
+                  </FormField>
+                </div>
+              ) : (
+                <FormField id="model" label="Model" error={errors.model?.message}>
+                  <Input
+                    id="model"
+                    {...register("model")}
+                    placeholder="openai:anthropic/claude-haiku-4.5:nitro"
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-invalid={!!errors.model}
+                  />
+                </FormField>
+              )}
+            </div>
           </AccordionContent>
         </AccordionItem>
 
         <AccordionItem value="system-prompt">
           <SectionTrigger value="system-prompt" />
           <AccordionContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="block text-xs uppercase tracking-[0.1em]">Prompt Source</Label>
+              <SegmentedToggle
+                value={sourceState.promptMode}
+                options={[
+                  { value: "registry" as const, label: "Registry prompt" },
+                  { value: "inline" as const, label: "Inline prompt" },
+                  { value: "file" as const, label: "Prompt file" },
+                ]}
+                onChange={(v) => handlePromptModeChange(v as PromptSourceMode)}
+                pattern="radio"
+                ariaLabel="Prompt Source"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="block text-xs uppercase tracking-[0.1em]">Version Mode</Label>
+              <SegmentedToggle
+                value={sourceState.versionMode}
+                options={[
+                  { value: "latest" as const, label: "Latest" },
+                  { value: "pinned" as const, label: "Pinned" },
+                ]}
+                onChange={(v) => patchSourceState({ versionMode: v as PromptVersionMode })}
+                pattern="radio"
+                ariaLabel="Version Mode"
+              />
+              <p className="font-mono text-xs text-muted">
+                Latest follows new prompt versions; Pinned resolves one immutable version.
+              </p>
+            </div>
+
+            {sourceState.promptMode === "registry" && (
+              <div className="space-y-4">
+                {/* Registry-health UI is scoped to the registry branch: an
+                inline/file prompt does not depend on the registry (I8). */}
+                {promptsError && (
+                  <RegistryErrorStrip
+                    odId="prompt-registry-error"
+                    error={promptsErrorValue}
+                    onRetry={() => void refetchPrompts()}
+                  />
+                )}
+                {promptsLoading && !promptsError && (
+                  <p className="font-mono text-xs text-muted" aria-live="polite">
+                    Loading prompt registry…
+                  </p>
+                )}
+                <FormField id="prompt-select" label="Prompt">
+                  <Select
+                    value={sourceState.promptId || undefined}
+                    onValueChange={(v) => patchSourceState({ promptId: v })}
+                  >
+                    <SelectTrigger id="prompt-select" className="w-full">
+                      <SelectValue placeholder="Select a registry prompt…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(promptCatalog ?? []).map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+
+                {sourceState.versionMode === "pinned" && (
+                  <FormField id="prompt-version-select" label="Version">
+                    <Select
+                      value={
+                        sourceState.promptVersion != null
+                          ? String(sourceState.promptVersion)
+                          : undefined
+                      }
+                      onValueChange={(v) => patchSourceState({ promptVersion: Number(v) })}
+                    >
+                      <SelectTrigger id="prompt-version-select" className="w-full">
+                        <SelectValue placeholder="Select an immutable version…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {versionOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormField>
+                )}
+
+                {sourceState.promptId &&
+                  !promptsError &&
+                  !promptsLoading &&
+                  !(promptCatalog ?? []).some((p) => p.id === sourceState.promptId) && (
+                    <p className="font-mono text-xs text-muted">
+                      The stored prompt reference is not in your registry anymore.
+                    </p>
+                  )}
+              </div>
+            )}
+
             <FormField id="system-prompt" label="System Prompt">
               <Textarea
                 id="system-prompt"
@@ -219,6 +508,10 @@ export default function AgentConfigForm({
                 spellCheck={false}
               />
             </FormField>
+            <p className="font-mono text-xs text-muted">
+              Only one prompt source is submitted: registry, inline or file. Switching the mode
+              clears the inactive fields in the saved YAML.
+            </p>
           </AccordionContent>
         </AccordionItem>
 
@@ -344,10 +637,36 @@ export default function AgentConfigForm({
           Cancel
         </Button>
         <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving…" : mode === "create" ? "Create" : "Update"}
+          {submitLabel(isPending, mode)}
         </Button>
       </div>
     </form>
+  );
+}
+
+/** Submit label: pending state first, then the mode verb (S3358). */
+function submitLabel(isPending: boolean, mode: "create" | "edit"): string {
+  if (isPending) return "Saving…";
+  return mode === "create" ? "Create" : "Update";
+}
+
+function RegistryErrorStrip({
+  odId,
+  error,
+  onRetry,
+}: Readonly<{ odId: string; error: unknown; onRetry: () => void }>) {
+  const message = error instanceof Error ? error.message : "Registry unavailable";
+  return (
+    <div
+      role="alert"
+      data-od-id={odId}
+      className="flex flex-wrap items-center justify-between gap-2 border border-danger bg-danger/10 p-3"
+    >
+      <p className="font-mono text-xs text-danger">{message}</p>
+      <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+        Retry
+      </Button>
+    </div>
   );
 }
 

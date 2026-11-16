@@ -28,7 +28,7 @@ const PROVIDERS = LLM_PROVIDERS;
 
 const LlmSchema = z.object({
   provider: z.enum(LLM_PROVIDERS),
-  base_url: z.string().url().or(z.literal("")),
+  base_url: z.url().or(z.literal("")),
   api_key: z.string().min(1, "API key is required"),
 });
 

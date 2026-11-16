@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
 import { renderWithProviders } from "../../utils/render";
@@ -238,7 +238,7 @@ describe("McpRegistryPage", () => {
 
     await user.click(screen.getByRole("button", { name: /register/i }));
 
-    const dlg = document.querySelector('[role=dialog]');
+    const dlg = document.querySelector("[role=dialog]");
     expect(dlg).not.toBeNull();
     // Prefilled name + URL, create mode (no "Save" edit label).
     expect((dlg?.querySelector("#mcp-name") as HTMLInputElement | null)?.value).toBe(

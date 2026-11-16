@@ -8,7 +8,13 @@ function generateTurnId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
   }
-  return `turn-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  // Fallback for runtimes without crypto.randomUUID: Web Crypto randomness.
+  // The turn id is not security-sensitive, but using the platform CSPRNG
+  // avoids Math.random entirely (Sonar S2245) with stronger collision
+  // resistance in every runtime that has Web Crypto (all supported ones).
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  return `turn-${Date.now()}-${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
 }
 
 export function useStreamChat(threadId: string | null) {

@@ -22,12 +22,13 @@ import { useDeleteFolder } from "@/application/hooks/rag/useDeleteFolder";
 import { useUploadFiles, extractFilesFromDrop } from "@/application/hooks/rag/useUploadFiles";
 import { resolveWorkingDir } from "@/application/lib/workingDir";
 import { cn } from "@/application/lib/utils";
+import { trimTrailingSlashes } from "@/domain/entities/rag/fileEntry";
 
 const DEFAULT_CHUNK_SIZE = 1000;
 const DEFAULT_CHUNK_OVERLAP = 200;
 
 function prefixToSegments(prefix: string): string[] {
-  const trimmed = prefix.replace(/\/+$/, "");
+  const trimmed = trimTrailingSlashes(prefix);
   if (!trimmed) return [];
   return trimmed.split("/");
 }

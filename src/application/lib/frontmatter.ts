@@ -37,9 +37,10 @@ export function parseFrontmatter(content: string): { data: SkillFrontmatter; bod
   let closeMatchIndex = -1;
   let closeMatchLength = 0;
   // Check if rest starts with the closing delimiter immediately
-  if (/^---\s*(\r?\n|$)/.test(rest)) {
+  const closeMatch = /^---\s*(\r?\n|$)/.exec(rest);
+  if (closeMatch) {
     closeMatchIndex = 0;
-    closeMatchLength = rest.match(/^---\s*(\r?\n|$)/)![0].length;
+    closeMatchLength = closeMatch[0].length;
   } else {
     // Search for `\n---` on its own line
     const closeRegex = /\n---\s*(\r?\n|$)/g;
@@ -78,24 +79,34 @@ export function parseFrontmatter(content: string): { data: SkillFrontmatter; bod
  * Extracts simple `key: value` scalar lines (one per line) without quoting
  * rules. Handles the common case of a description containing characters that
  * would make the block invalid YAML (e.g. an unquoted colon).
+ *
+ * Implemented with indexOf rather than a regex with quantified key/value
+ * groups: the parse stays linear for any input (Sonar S8786) and cannot
+ * super-linearly backtrack.
  */
 function extractLenient(yamlBlock: string): SkillFrontmatter {
   const data: SkillFrontmatter = {};
+  const keyStart = /^[A-Za-z_][\w-]*$/;
   for (const line of yamlBlock.split(/\r?\n/)) {
-    const match = line.match(/^([A-Za-z_][\w-]*)\s*:\s*(.*)$/);
-    if (!match) continue;
-    const [, key, rawValue] = match;
-    let value = rawValue.trim();
-    // Strip a single layer of matching quotes if present.
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    data[key] = value;
+    const colonIndex = line.indexOf(":");
+    if (colonIndex < 1) continue;
+    const key = line.slice(0, colonIndex).trimEnd();
+    if (!keyStart.test(key)) continue;
+    const rawValue = line.slice(colonIndex + 1);
+    data[key] = stripMatchingQuotes(rawValue.trim());
   }
   return data;
+}
+
+/** Strip a single layer of matching quotes if present. */
+function stripMatchingQuotes(value: string): string {
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1);
+  }
+  return value;
 }
 
 /**
@@ -109,14 +120,13 @@ export function buildFrontmatter(
   body: string,
 ): string {
   const yamlBlock = `name: ${formatScalar(data.name)}\ndescription: ${formatScalar(data.description)}`;
-  const bodyPart = body ? body : "";
-  return `${FRONTMATTER_DELIMITER}\n${yamlBlock}\n${FRONTMATTER_DELIMITER}\n${bodyPart}`;
+  return `${FRONTMATTER_DELIMITER}\n${yamlBlock}\n${FRONTMATTER_DELIMITER}\n${body}`;
 }
 
 function formatScalar(value: string): string {
   // Quote values that contain a YAML-meaningful construct so the output
   // remains valid YAML and round-trips through parseFrontmatter.
-  if (/[:#\-?][\s]|^["']|[:]{1}$/.test(value) || value.includes("\n")) {
+  if (/[:#\-?]\s|^["']|:$/.test(value) || value.includes("\n")) {
     return JSON.stringify(value);
   }
   return value;

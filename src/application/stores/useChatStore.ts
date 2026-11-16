@@ -49,6 +49,30 @@ function emptyStreamingTurn(turnId: string): StreamingTurn {
   };
 }
 
+function emptySubagentState(): SubagentState {
+  return { content: "", thinking: "", toolCalls: [], toolResults: [] };
+}
+
+function applyParentEvent(turn: StreamingTurn, ev: TraceEvent): void {
+  if (ev.type === TraceEventType.THINKING && ev.content) {
+    turn.parentThinking += ev.content;
+  } else if (ev.type === TraceEventType.CONTENT && ev.content) {
+    turn.parentContent += ev.content;
+  }
+}
+
+function applySubagentEvent(sub: SubagentState, ev: TraceEvent): void {
+  if (ev.type === TraceEventType.THINKING && ev.content) {
+    sub.thinking += ev.content;
+  } else if (ev.type === TraceEventType.CONTENT && ev.content) {
+    sub.content += ev.content;
+  } else if (ev.type === TraceEventType.TOOL_CALL) {
+    sub.toolCalls = [...sub.toolCalls, ev];
+  } else if (ev.type === TraceEventType.TOOL_RESULT) {
+    sub.toolResults = [...sub.toolResults, ev];
+  }
+}
+
 export const useChatStore = create<ChatState>((set) => ({
   activeThreadId: null,
   streamingTurn: null,
@@ -60,36 +84,19 @@ export const useChatStore = create<ChatState>((set) => ({
   appendTraceEvent: (ev) =>
     set((state) => {
       if (!state.streamingTurn) return state;
+      const previous = state.streamingTurn;
       const turn: StreamingTurn = {
-        ...state.streamingTurn,
-        events: [...state.streamingTurn.events, ev],
+        ...previous,
+        events: [...previous.events, ev],
         currentSource: ev.source,
       };
 
       if (ev.source === null) {
-        if (ev.type === TraceEventType.THINKING && ev.content) {
-          turn.parentThinking = state.streamingTurn.parentThinking + ev.content;
-        } else if (ev.type === TraceEventType.CONTENT && ev.content) {
-          turn.parentContent = state.streamingTurn.parentContent + ev.content;
-        }
+        applyParentEvent(turn, ev);
       } else {
-        const prev = state.streamingTurn.subagents[ev.source] ?? {
-          content: "",
-          thinking: "",
-          toolCalls: [],
-          toolResults: [],
-        };
-        const sub: SubagentState = { ...prev };
-        if (ev.type === TraceEventType.THINKING && ev.content) {
-          sub.thinking = prev.thinking + ev.content;
-        } else if (ev.type === TraceEventType.CONTENT && ev.content) {
-          sub.content = prev.content + ev.content;
-        } else if (ev.type === TraceEventType.TOOL_CALL) {
-          sub.toolCalls = [...prev.toolCalls, ev];
-        } else if (ev.type === TraceEventType.TOOL_RESULT) {
-          sub.toolResults = [...prev.toolResults, ev];
-        }
-        turn.subagents = { ...state.streamingTurn.subagents, [ev.source]: sub };
+        const sub = { ...(previous.subagents[ev.source] ?? emptySubagentState()) };
+        applySubagentEvent(sub, ev);
+        turn.subagents = { ...previous.subagents, [ev.source]: sub };
       }
 
       const isAiMessage = ev.type === TraceEventType.AI_MESSAGE;

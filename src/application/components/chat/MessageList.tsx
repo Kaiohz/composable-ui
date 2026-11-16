@@ -7,6 +7,7 @@ import { useChatStore } from "@/application/stores/useChatStore";
 import { MessageRole, type Message } from "@/domain/entities/chat/message";
 import type { TraceEvent, Turn } from "@/domain/entities/chat/traceEvent";
 import { TraceEventType } from "@/domain/entities/chat/traceEvent";
+import ThreadSourceBadge from "@/application/components/shared/ThreadSourceBadge";
 import ChatMessage from "@/application/components/chat/ChatMessage";
 import ThinkingBlock from "@/application/components/chat/ThinkingBlock";
 import ToolCallBadge from "@/application/components/chat/ToolCallBadge";
@@ -19,6 +20,13 @@ interface MessageListProps {
   threadId: string;
   agentName: string;
   agentHasResponseFormat?: boolean;
+  /**
+   * Read-only presentation (e.g. the trace-detail surface): the empty state
+   * must not suggest an interactive composer (I2).
+   */
+  readOnly?: boolean;
+  /** Text shown when the thread has no turns. Defaults are derived from `readOnly`. */
+  emptyMessage?: string;
 }
 
 interface SubagentRuntime {
@@ -84,7 +92,15 @@ export default function MessageList({
   threadId,
   agentName,
   agentHasResponseFormat = false,
+  readOnly = false,
+  emptyMessage,
 }: Readonly<MessageListProps>) {
+  // The empty state adapts to the surface: the chat composer invites a
+  // first message, while a read-only trace timeline reports that no events
+  // were recorded (I2).
+  const resolvedEmptyMessage =
+    emptyMessage ??
+    (readOnly ? "This thread has no recorded events." : "Send a message to start the conversation");
   const { data: threadHistory, isLoading } = useThreadHistory(threadId);
   const streamingTurn = useChatStore((s) => s.streamingTurn);
   const isStreaming = useChatStore((s) => s.isStreaming);
@@ -140,138 +156,151 @@ export default function MessageList({
   }
 
   const hasMessages = entries.length > 0;
-
-  if (!hasMessages && !isStreaming && !error && !pendingUserMessage) {
-    return (
-      <div
-        className="flex flex-1 flex-col items-center justify-center gap-4 bg-bg p-8"
-        data-od-id="chat-empty-state"
-      >
-        <MessagesSquare className="h-12 w-12 text-muted" aria-hidden="true" />
-        <p className="font-body text-sm text-muted">Send a message to start the conversation</p>
-      </div>
-    );
-  }
+  const threadSource = threadHistory?.thread?.source;
 
   return (
-    <div ref={scrollRef} className="flex flex-1 flex-col gap-5 overflow-y-auto bg-bg p-4 md:p-6">
-      {entries.map((entry, idx) => (
-        <ChatMessage
-          key={`${entry.message.timestamp}-${idx}`}
-          message={entry.message}
-          agentName={agentName}
-          threadId={threadId}
-          events={entry.events}
-          isLast={idx === entries.length - 1}
-        />
-      ))}
-
-      {pendingUserMessage && (
-        <ChatMessage
-          message={{
-            role: MessageRole.HUMAN,
-            content: pendingUserMessage,
-            timestamp: new Date().toISOString(),
-            tool_calls: null,
-            status: null,
-            structured_response: null,
-            thinking: null,
-            turn_id: null,
-          }}
-          agentName={agentName}
-          threadId={threadId}
-        />
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-bg">
+      {threadSource && (
+        <div
+          data-od-id="thread-header"
+          className="flex shrink-0 items-center gap-2 border-b border-border-soft px-4 py-2 md:px-6"
+        >
+          <ThreadSourceBadge source={threadSource} />
+          <span className="font-mono text-xs uppercase tracking-[0.1em] text-muted">Thread</span>
+        </div>
       )}
+      <div ref={scrollRef} className="flex flex-1 flex-col gap-5 overflow-y-auto bg-bg p-4 md:p-6">
+        {hasMessages &&
+          entries.map((entry, idx) => (
+            <ChatMessage
+              key={`${entry.message.timestamp}-${idx}`}
+              message={entry.message}
+              agentName={agentName}
+              threadId={threadId}
+              events={entry.events}
+              isLast={idx === entries.length - 1}
+            />
+          ))}
 
-      {isStreaming && streamingTurn && (
-        <div className="animate-chat-msg-enter flex gap-3">
+        {!hasMessages && !isStreaming && !error && !pendingUserMessage && (
           <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center border border-border bg-accent font-display text-xs uppercase text-accent-on"
-            aria-hidden="true"
+            className="flex flex-1 flex-col items-center justify-center gap-4"
+            data-od-id="chat-empty-state"
           >
-            {agentName.charAt(0).toUpperCase()}
+            <MessagesSquare className="h-12 w-12 text-muted" aria-hidden="true" />
+            <p className="font-body text-sm text-muted">{resolvedEmptyMessage}</p>
           </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-sm text-fg">{agentName}</span>
+        )}
+
+        {pendingUserMessage && (
+          <ChatMessage
+            message={{
+              role: MessageRole.HUMAN,
+              content: pendingUserMessage,
+              timestamp: new Date().toISOString(),
+              tool_calls: null,
+              status: null,
+              structured_response: null,
+              thinking: null,
+              turn_id: null,
+            }}
+            agentName={agentName}
+            threadId={threadId}
+          />
+        )}
+
+        {isStreaming && streamingTurn && (
+          <div className="animate-chat-msg-enter flex gap-3">
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center border border-border bg-accent font-display text-xs uppercase text-accent-on"
+              aria-hidden="true"
+            >
+              {agentName.charAt(0).toUpperCase()}
             </div>
-            <div className="border border-border bg-surface p-4 text-sm text-fg">
-              {deferredParentContent && (
-                <div className={`mb-3 ${MARKDOWN_PROSE_CLASSES}`}>
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{deferredParentContent}</ReactMarkdown>
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-sm text-fg">{agentName}</span>
+              </div>
+              <div className="border border-border bg-surface p-4 text-sm text-fg">
+                {deferredParentContent && (
+                  <div className={`mb-3 ${MARKDOWN_PROSE_CLASSES}`}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {deferredParentContent}
+                    </ReactMarkdown>
+                  </div>
+                )}
+                <ThinkingBlock text={deferredParentThinking} source={null} />
+
+                {parentTools.toolCalls.map((call) => (
+                  <ToolCallBadge
+                    key={call.id}
+                    name={call.name ?? "unknown"}
+                    args={call.content}
+                    source={null}
+                  />
+                ))}
+                {parentTools.toolResults.map((result) => (
+                  <ToolResultBlock
+                    key={result.id}
+                    name={result.name}
+                    content={result.content}
+                    source={null}
+                  />
+                ))}
+
+                {streamingSubagents.map((sub) => (
+                  <SubagentPanel
+                    key={sub.name}
+                    name={sub.name}
+                    content={sub.content}
+                    thinking={sub.thinking}
+                    toolCalls={sub.toolCalls}
+                    toolResults={sub.toolResults}
+                  />
+                ))}
+
+                <StructuredResponseLive
+                  result={streamingTurn.structured_response}
+                  hasResponseFormat={agentHasResponseFormat}
+                />
+
+                <div
+                  className="mt-2 flex items-center gap-2 font-mono text-xs text-muted"
+                  aria-live="polite"
+                >
+                  <span
+                    className="spin inline-block h-3 w-3 border-2 border-accent border-t-transparent"
+                    aria-hidden="true"
+                  />
+                  <span>{streamingTurn.parentContent ? "Processing…" : "Thinking…"}</span>
                 </div>
-              )}
-              <ThinkingBlock text={deferredParentThinking} source={null} />
-
-              {parentTools.toolCalls.map((call) => (
-                <ToolCallBadge
-                  key={call.id}
-                  name={call.name ?? "unknown"}
-                  args={call.content}
-                  source={null}
-                />
-              ))}
-              {parentTools.toolResults.map((result) => (
-                <ToolResultBlock
-                  key={result.id}
-                  name={result.name}
-                  content={result.content}
-                  source={null}
-                />
-              ))}
-
-              {streamingSubagents.map((sub) => (
-                <SubagentPanel
-                  key={sub.name}
-                  name={sub.name}
-                  content={sub.content}
-                  thinking={sub.thinking}
-                  toolCalls={sub.toolCalls}
-                  toolResults={sub.toolResults}
-                />
-              ))}
-
-              <StructuredResponseLive
-                result={streamingTurn.structured_response}
-                hasResponseFormat={agentHasResponseFormat}
-              />
-
-              <div
-                className="mt-2 flex items-center gap-2 font-mono text-xs text-muted"
-                aria-live="polite"
-              >
-                <span
-                  className="spin inline-block h-3 w-3 border-2 border-accent border-t-transparent"
-                  aria-hidden="true"
-                />
-                <span>{streamingTurn.parentContent ? "Processing…" : "Thinking…"}</span>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {error && !isStreaming && (
-        <div className="animate-chat-msg-enter flex gap-3">
-          <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center border border-danger bg-danger/10 font-display text-xs uppercase text-danger"
-            aria-hidden="true"
-          >
-            !
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-sm text-fg">{agentName}</span>
+        {error && !isStreaming && (
+          <div className="animate-chat-msg-enter flex gap-3">
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center border border-danger bg-danger/10 font-display text-xs uppercase text-danger"
+              aria-hidden="true"
+            >
+              !
             </div>
-            <div className="border border-danger bg-bg p-3 text-sm">
-              <p className="font-mono text-xs uppercase tracking-[0.1em] text-danger">
-                Something went wrong
-              </p>
-              <p className="mt-1 font-mono text-xs text-danger/80">{error}</p>
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-sm text-fg">{agentName}</span>
+              </div>
+              <div className="border border-danger bg-bg p-3 text-sm">
+                <p className="font-mono text-xs uppercase tracking-[0.1em] text-danger">
+                  Something went wrong
+                </p>
+                <p className="mt-1 font-mono text-xs text-danger/80">{error}</p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

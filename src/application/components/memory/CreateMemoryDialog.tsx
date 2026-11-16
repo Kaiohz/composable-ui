@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type SyntheticEvent } from "react";
 import { toast } from "sonner";
 import { useCreateMemory } from "@/application/hooks/memory/useCreateMemory";
 import { extractApiMessage } from "@/infrastructure/api/store/storeApi";
@@ -36,7 +36,7 @@ export function CreateMemoryDialog({ open, onOpenChange }: Readonly<CreateMemory
     onOpenChange(false);
   }
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName) {
@@ -69,8 +69,8 @@ export function CreateMemoryDialog({ open, onOpenChange }: Readonly<CreateMemory
           <DialogHeader className="space-y-1.5">
             <DialogTitle className="font-display text-lg">Create Memory</DialogTitle>
             <DialogDescription className="text-sm text-muted">
-              Create a markdown memory file at
-              <span className="font-mono text-fg-2"> /memories/&lt;name&gt;.md</span>.
+              Create a markdown memory file at{" "}
+              <span className="font-mono text-fg-2">/memories/&lt;name&gt;.md</span>.
             </DialogDescription>
           </DialogHeader>
         </div>

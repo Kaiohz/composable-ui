@@ -130,7 +130,11 @@ export default function WorkspaceSelector({
       </span>
 
       {showSuggestions && filteredSuggestions.length > 0 && (
-        <ul
+        // WAI-ARIA 1.2 combobox + listbox pattern: an editable input paired
+        // with a styled suggestion <ul>. A native <select size> or <datalist>
+        // cannot carry the Tetris dropdown presentation, so the ARIA role is
+        // intentional here — targeted suppression after review (Sonar S6819).
+        <ul /* NOSONAR */
           ref={listRef}
           id={listboxId}
           role="listbox"
@@ -139,7 +143,9 @@ export default function WorkspaceSelector({
           {filteredSuggestions.map((folder, idx) => (
             <li key={folder} role="option" aria-selected={idx === activeIndex}>
               <button
-                ref={(el) => void (itemRefs.current[idx] = el)}
+                ref={(el) => {
+                  itemRefs.current[idx] = el;
+                }}
                 type="button"
                 tabIndex={idx === activeIndex ? 0 : -1}
                 className={cn(

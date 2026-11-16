@@ -39,10 +39,18 @@ function cleanMcpServer(server: AgentConfig["mcp_servers"][number]): PlainRecord
   return result;
 }
 
+function cleanPromptRef(config: AgentConfig): PlainRecord | null {
+  if (!config.prompt_ref) return null;
+  const ref: PlainRecord = { id: config.prompt_ref.id };
+  if (config.prompt_ref.version != null) {
+    ref.version = config.prompt_ref.version;
+  }
+  return ref;
+}
+
 export function serializeAgentConfig(config: AgentConfig): string {
   const clean: PlainRecord = {
     name: config.name,
-    model: config.model,
     tools: config.tools,
     backend: config.backend,
     hitl: config.hitl,
@@ -53,14 +61,26 @@ export function serializeAgentConfig(config: AgentConfig): string {
     debug: config.debug,
   };
 
-  if (config.system_prompt) {
-    clean.system_prompt = config.system_prompt;
+  const promptRef = cleanPromptRef(config);
+  if (promptRef) {
+    // Registry-prompt mode wins: inline and file prompt fields are cleared
+    // from the submitted YAML (spec §AGT-004.7, presence-based exclusivity).
+    clean.prompt_ref = promptRef;
+  } else {
+    if (config.system_prompt) clean.system_prompt = config.system_prompt;
+    if (config.system_prompt_file) clean.system_prompt_file = config.system_prompt_file;
   }
+
+  if (config.model_ref) {
+    // Catalog-model mode: `model_ref` takes precedence; the legacy custom
+    // string is omitted from the submitted YAML (spec §AGT-003.4).
+    clean.model_ref = config.model_ref;
+  } else if (config.model) {
+    clean.model = config.model;
+  }
+
   if (config.description) {
     clean.description = config.description;
-  }
-  if (config.system_prompt_file) {
-    clean.system_prompt_file = config.system_prompt_file;
   }
   if (config.response_format && Object.keys(config.response_format).length > 0) {
     clean.response_format = config.response_format;
@@ -93,5 +113,16 @@ export function agentConfigToYamlFile(config: AgentConfig, filename?: string): F
   const yamlContent = serializeAgentConfig(config);
   const safeName = config.name.replaceAll(/[^a-z0-9_-]/gi, "_");
   const name = filename ?? `${safeName}.yaml`;
-  return new File([yamlContent], name, { type: "application/x-yaml" });
+  const file = new File([yamlContent], name, { type: "application/x-yaml" });
+  // Some environments (older jsdom) ship a File without Blob#text; provide a
+  // spec-compatible fallback so consumers can always read the contents back.
+  const fileLike = file as File & { text?: () => Promise<string> };
+  if (typeof fileLike.text !== "function") {
+    Object.defineProperty(fileLike, "text", {
+      value: () => Promise.resolve(yamlContent),
+      configurable: true,
+      writable: true,
+    });
+  }
+  return file;
 }

@@ -147,7 +147,10 @@ describe("AgentConfigForm", () => {
         <AgentConfigForm mode="create" onSubmit={mockSubmit} onCancel={mockCancel} />,
       );
 
-      expect(screen.getByLabelText(/model/i)).toBeInTheDocument();
+      // /^model$/i — the Model Source radiogroup (aria-label "Model Source")
+      // was added by the registry-prompts/models feature; the legacy custom
+      // model field itself keeps its exact "Model" label.
+      expect(screen.getByLabelText(/^model$/i)).toBeInTheDocument();
     });
 
     it("does NOT render a Debug switch", () => {
@@ -231,7 +234,7 @@ describe("AgentConfigForm", () => {
       const nameInput = screen.getByLabelText(/agent name/i) as HTMLInputElement;
       expect(nameInput.value).toBe("existing-agent");
 
-      const modelInput = screen.getByLabelText(/model/i) as HTMLInputElement;
+      const modelInput = screen.getByLabelText(/^model$/i) as HTMLInputElement;
       expect(modelInput.value).toBe("openai:gpt-4o");
     });
 

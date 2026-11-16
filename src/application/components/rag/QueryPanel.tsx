@@ -92,7 +92,7 @@ export default function QueryPanel({
           {isLoading ? (
             <>
               <span className="spin" aria-hidden="true" data-testid="query-spinner" />
-              Searching...
+              {"Searching..."}
             </>
           ) : (
             <>

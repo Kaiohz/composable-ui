@@ -455,7 +455,9 @@
 [data-sonner-toast] {
   font-family: var(--font-mono) !important;
   font-size: var(--text-xs) !important;
-  letter-spacing: 0.08em !important;
+  /* No !important: sonner never competes on letter-spacing, and users' own
+     typographic adjustments must be able to override ours (css:S7925). */
+  letter-spacing: 0.08em;
   text-transform: uppercase !important;
   border-radius: 0 !important;
   box-shadow: var(--elev-raised) !important;

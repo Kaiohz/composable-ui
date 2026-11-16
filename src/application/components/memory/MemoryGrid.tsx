@@ -71,7 +71,7 @@ export default function MemoryGrid({ onCreateNew, onConfigure }: Readonly<Memory
 
 function deriveNameFromPath(path: string): string {
   const parts = path.split("/").filter(Boolean);
-  return parts.length > 0 ? parts[parts.length - 1] : path;
+  return parts.at(-1) ?? path;
 }
 
 function MemoryCreateButton({ onClick }: Readonly<{ onClick: () => void }>) {

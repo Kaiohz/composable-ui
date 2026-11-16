@@ -61,7 +61,7 @@ function resolveVariant(status: string): BadgeVariant {
 }
 
 function formatLabel(status: string): string {
-  return status.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
+  return status.replaceAll("_", " ").replace(/\b\w/g, (m) => m.toUpperCase());
 }
 
 export default function StatusBadge({ status, className }: Readonly<StatusBadgeProps>) {

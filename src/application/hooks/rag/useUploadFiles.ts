@@ -76,8 +76,9 @@ export async function extractFilesFromDrop(items: DataTransferItemList): Promise
   const collected: File[] = [];
   const entries: FileSystemEntry[] = [];
 
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
+  // DataTransferItemList has no Symbol.iterator — snapshot it first so the
+  // drag-and-drop payload can be iterated with a for-of loop (Sonar S4138).
+  for (const item of Array.from(items)) {
     if (item.kind !== "file") continue;
     const entry = item.webkitGetAsEntry?.();
     if (entry) {

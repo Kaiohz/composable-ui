@@ -30,8 +30,7 @@ export function useLogout() {
       `post_logout_redirect_uri=${encodeURIComponent(config.oauth2ProxyUrl + "/oauth2/start")}`;
 
     globalThis.location.href =
-      `${config.oauth2ProxyUrl}/oauth2/sign_out?rd=` +
-      encodeURIComponent(logtoEndSession);
+      `${config.oauth2ProxyUrl}/oauth2/sign_out?rd=` + encodeURIComponent(logtoEndSession);
   };
 
   return { logout, canLogout: !!config?.oauth2ProxyUrl };

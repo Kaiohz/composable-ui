@@ -19,8 +19,20 @@ export class FileEntry {
 
   get filename(): string {
     const parts = this.objectName.split("/");
-    return parts[parts.length - 1] || this.objectName;
+    return parts.at(-1) || this.objectName;
   }
+}
+
+/**
+ * Strip all trailing "/" characters with a linear scan — no regex
+ * backtracking on adversarial input (Sonar S8786).
+ */
+export function trimTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.endsWith("/", end)) {
+    end -= 1;
+  }
+  return value.slice(0, end);
 }
 
 export class FolderEntry {
@@ -31,8 +43,8 @@ export class FolderEntry {
   }
 
   get name(): string {
-    const trimmed = this.prefix.replace(/\/+$/, "");
+    const trimmed = trimTrailingSlashes(this.prefix);
     const parts = trimmed.split("/");
-    return parts[parts.length - 1] || trimmed;
+    return parts.at(-1) || trimmed;
   }
 }

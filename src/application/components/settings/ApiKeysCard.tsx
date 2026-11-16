@@ -234,19 +234,7 @@ export default function ApiKeysCard({ odId = "settings-api-keys" }: ApiKeysCardP
           </Button>
         </form>
 
-        {isLoading ? (
-          <p className="font-mono text-xs text-muted" data-od-id="api-keys-loading">
-            Loading API keys…
-          </p>
-        ) : sortedKeys.length === 0 ? (
-          <p className="font-mono text-xs text-muted">No API keys yet.</p>
-        ) : (
-          <ul className="flex flex-col gap-2" data-od-id="api-keys-list">
-            {sortedKeys.map((k) => (
-              <ApiKeyRow key={k.id} apiKey={k} onRevoke={onRevoke} />
-            ))}
-          </ul>
-        )}
+        <ApiKeysSection isLoading={isLoading} sortedKeys={sortedKeys} onRevoke={onRevoke} />
 
         {isError ? (
           <p className="font-mono text-xs text-danger" role="alert">
@@ -257,5 +245,34 @@ export default function ApiKeysCard({ odId = "settings-api-keys" }: ApiKeysCardP
 
       <CreatedKeyDialog created={created} onClose={() => setCreated(null)} />
     </section>
+  );
+}
+
+/** Loading / empty / list states of the key collection (S3358). */
+function ApiKeysSection({
+  isLoading,
+  sortedKeys,
+  onRevoke,
+}: Readonly<{
+  isLoading: boolean;
+  sortedKeys: ApiKeyView[];
+  onRevoke: (id: string) => void;
+}>) {
+  if (isLoading) {
+    return (
+      <p className="font-mono text-xs text-muted" data-od-id="api-keys-loading">
+        Loading API keys…
+      </p>
+    );
+  }
+  if (sortedKeys.length === 0) {
+    return <p className="font-mono text-xs text-muted">No API keys yet.</p>;
+  }
+  return (
+    <ul className="flex flex-col gap-2" data-od-id="api-keys-list">
+      {sortedKeys.map((k) => (
+        <ApiKeyRow key={k.id} apiKey={k} onRevoke={onRevoke} />
+      ))}
+    </ul>
   );
 }

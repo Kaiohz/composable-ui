@@ -53,11 +53,9 @@ export default function FileRow({
       </span>
       <span className="min-w-0 truncate text-sm text-fg font-body">{filename}</span>
       <span className="hidden md:block text-xs font-mono text-muted text-right">{sizeText}</span>
-      <div
-        className="flex items-center gap-1"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-      >
+      {/* Container of the row actions: a plain wrapper (no handlers), the
+          native buttons own their click behavior. */}
+      <div className="flex items-center gap-1">
         {onRead && (
           <Button
             type="button"
