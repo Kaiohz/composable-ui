@@ -168,7 +168,7 @@ export default function SkillViewer({ skillPath, open, onOpenChange }: Readonly<
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = storePath.split("/").filter(Boolean).pop() ?? "SKILL.md";
+    a.download = storePath.split("/").findLast((part) => part.length > 0) ?? "SKILL.md";
     document.body.appendChild(a);
     a.click();
     a.remove();

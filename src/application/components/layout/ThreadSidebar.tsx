@@ -7,6 +7,7 @@ import { useCreateThread } from "@/application/hooks/chat/useCreateThread";
 import { useChatStore } from "@/application/stores/useChatStore";
 import type { Thread } from "@/domain/entities/chat/thread";
 import { Button } from "@/application/components/ui/button";
+import ThreadSourceBadge from "@/application/components/shared/ThreadSourceBadge";
 import {
   Dialog,
   DialogContent,
@@ -119,8 +120,11 @@ export default function ThreadSidebar({ activeThreadId }: Readonly<ThreadSidebar
                         isActive && "border-l-accent bg-surface-warm text-accent",
                       )}
                     >
-                      <span className="truncate text-sm font-semibold text-fg">
-                        {getThreadPreview(thread)}
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="truncate text-sm font-semibold text-fg">
+                          {getThreadPreview(thread)}
+                        </span>
+                        <ThreadSourceBadge source={thread.source} />
                       </span>
                       <span className="truncate font-mono text-xs text-muted">
                         {formatDate(thread.created_at)}

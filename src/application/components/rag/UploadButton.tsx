@@ -67,7 +67,7 @@ export default function UploadButton({ prefix, onUploadComplete }: Readonly<Uplo
         {uploadFiles.isPending ? (
           <>
             <span data-testid="upload-spinner" className="spin" aria-hidden="true" />
-            Uploading...
+            {"Uploading..."}
           </>
         ) : (
           <>

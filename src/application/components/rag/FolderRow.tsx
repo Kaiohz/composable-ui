@@ -18,38 +18,31 @@ export default function FolderRow({
   onIndexClassical,
   onDelete,
 }: Readonly<FolderRowProps>) {
-  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onClick();
-    }
-  }
-
   return (
     <div
-      role="button"
-      tabIndex={0}
-      aria-label={name}
       data-od-id={`file-row-${name}`}
-      onClick={onClick}
-      onKeyDown={handleKeyDown}
       className={cn(
-        "grid grid-cols-[40px_1fr_auto] items-center gap-3 px-3 py-2 border-b border-border-soft cursor-pointer transition-[background-color] duration-fast ease-standard hover:bg-surface-warm focus-visible:outline-none focus-visible:shadow-focus",
+        "grid grid-cols-[40px_1fr_auto] items-center gap-3 border-b border-border-soft transition-[background-color] duration-fast ease-standard hover:bg-surface-warm",
         isIndexing && "opacity-60",
       )}
     >
-      <span
-        className="flex h-8 w-8 items-center justify-center text-accent"
-        aria-label="folder icon"
+      {/* The folder-opening control is a NATIVE button (Sonar S6819/S6848):
+          only the icon + name cells open the folder; the row-level actions
+          stay outside the button so no interactive element is nested. */}
+      <button
+        type="button"
+        onClick={onClick}
+        className="col-span-2 flex min-w-0 items-center gap-3 py-2 pl-3 text-left cursor-pointer transition-[background-color] duration-fast ease-standard hover:bg-surface-warm focus-visible:outline-none focus-visible:shadow-focus"
       >
-        <Folder className="h-5 w-5" aria-hidden="true" />
-      </span>
-      <span className="text-sm text-fg font-body truncate">{name}</span>
-      <div
-        className="flex items-center gap-1"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-      >
+        <span
+          className="flex h-8 w-8 shrink-0 items-center justify-center text-accent"
+          aria-label="folder icon"
+        >
+          <Folder className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <span className="text-sm text-fg font-body truncate">{name}</span>
+      </button>
+      <div className="flex items-center gap-1 pr-3">
         {isIndexing && (
           <span className="spin text-accent" aria-hidden="true" data-testid="folder-spinner" />
         )}

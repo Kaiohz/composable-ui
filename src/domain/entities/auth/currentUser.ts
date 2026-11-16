@@ -22,10 +22,13 @@ export interface UserProfile {
  */
 export function getDisplayName(profile: UserProfile | null | undefined): string {
   if (!profile) return "";
-  if (profile.name && profile.name.trim()) return profile.name.trim();
-  if (profile.username && profile.username.trim()) return profile.username.trim();
-  if (profile.email && profile.email.trim()) {
-    const localPart = profile.email.split("@")[0];
+  const name = profile.name?.trim();
+  if (name) return name;
+  const username = profile.username?.trim();
+  if (username) return username;
+  const email = profile.email?.trim();
+  if (email) {
+    const localPart = email.split("@")[0];
     if (localPart) return localPart;
   }
   return profile.userId;

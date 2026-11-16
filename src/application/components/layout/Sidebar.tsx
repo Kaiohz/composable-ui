@@ -3,12 +3,16 @@ import { NavLink } from "react-router-dom";
 import {
   BookOpen,
   Bot,
+  Cpu,
   Database,
+  FileText,
   LogOut,
   MessagesSquare,
   Server,
   Settings,
   Sparkles,
+  Timer,
+  Waypoints,
   X,
 } from "lucide-react";
 import { cn } from "@/application/lib/utils";
@@ -28,6 +32,10 @@ interface NavItem {
 const NAV_ITEMS: readonly NavItem[] = [
   { to: "/chat", label: "Orchestration", icon: MessagesSquare, odId: "nav-orchestration" },
   { to: "/agents", label: "Agents", icon: Bot, odId: "nav-agents" },
+  { to: "/prompts", label: "Prompts", icon: FileText, odId: "nav-prompts" },
+  { to: "/models", label: "Models", icon: Cpu, odId: "nav-models" },
+  { to: "/crons", label: "Crons", icon: Timer, odId: "nav-crons" },
+  { to: "/traces", label: "Traces", icon: Waypoints, odId: "nav-traces" },
   { to: "/skills", label: "Skills", icon: Sparkles, odId: "nav-skills" },
   { to: "/memories", label: "Memories", icon: BookOpen, odId: "nav-memories" },
   { to: "/rag", label: "RAG Storage", icon: Database, odId: "nav-rag" },
@@ -99,7 +107,9 @@ function SidebarFooter() {
   const { profile, isLoading } = useCurrentUser();
   const displayName = getDisplayName(profile);
   const initials = isLoading ? "…" : getInitials(displayName);
-  const label = isLoading ? "Loading…" : displayName;
+  // Neutral placeholder while the profile loads; the role line below stays
+  // static so page-level loading indicators are unambiguous.
+  const label = isLoading ? "…" : displayName;
   const { logout, canLogout } = useLogout();
 
   return (

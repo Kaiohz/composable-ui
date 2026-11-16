@@ -27,6 +27,38 @@ const TITLE_MAP: readonly TitleEntry[] = [
     ),
   },
   {
+    match: (p) => p.startsWith("/prompts"),
+    render: () => (
+      <>
+        Prompts <span className="text-accent">Registry</span>
+      </>
+    ),
+  },
+  {
+    match: (p) => p.startsWith("/models"),
+    render: () => (
+      <>
+        Models <span className="text-accent">Catalog</span>
+      </>
+    ),
+  },
+  {
+    match: (p) => p.startsWith("/crons"),
+    render: () => (
+      <>
+        Crons <span className="text-accent">Scheduler</span>
+      </>
+    ),
+  },
+  {
+    match: (p) => p.startsWith("/traces"),
+    render: () => (
+      <>
+        Traces <span className="text-accent">Explorer</span>
+      </>
+    ),
+  },
+  {
     match: (p) => p.startsWith("/rag"),
     render: () => (
       <>

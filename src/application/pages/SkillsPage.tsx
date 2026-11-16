@@ -22,9 +22,9 @@ export default function SkillsPage() {
       >
         <div className="flex flex-wrap items-start justify-between gap-4">
           <p className="max-w-md font-body text-sm text-muted">
-            Create and manage reusable skills. Each skill lives at
-            <span className="font-mono text-fg-2"> /skills/&lt;name&gt;/SKILL.md </span>
-            with YAML frontmatter and a markdown body.
+            Create and manage reusable skills. Each skill lives at{" "}
+            <span className="font-mono text-fg-2">/skills/&lt;name&gt;/SKILL.md</span> with YAML
+            frontmatter and a markdown body.
           </p>
           <div className="flex items-center gap-3">
             <Badge variant="default" data-od-id="skill-count">

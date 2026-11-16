@@ -18,6 +18,16 @@ export interface HITLConfig {
   rules: Record<string, boolean | InterruptRule>;
 }
 
+/**
+ * Registry prompt reference (spec §AGT-001). `version` omitted resolves the
+ * prompt's Latest version; a pinned positive integer resolves exactly that
+ * immutable version.
+ */
+export interface PromptRef {
+  id: string;
+  version?: number;
+}
+
 export interface SubAgentConfig {
   name: string;
   description: string;
@@ -33,9 +43,23 @@ export interface SubAgentConfig {
 export interface AgentConfig {
   name: string;
   description?: string;
-  model: string;
+  /** Legacy custom provider model string. Ignored when `model_ref` is valid. */
+  model?: string;
   system_prompt?: string;
   system_prompt_file?: string;
+  /** Registry prompt reference — mutually exclusive with the two above. */
+  prompt_ref?: PromptRef;
+  /** Catalog model UUID — takes precedence over the legacy `model` string. */
+  model_ref?: string;
+  /**
+   * Optional display shortcuts. The backend config payload carries ids
+   * only; these fields are not part of the response contract. The viewer
+   * resolves names from the user's registries and falls back to these
+   * legacy fields when present (never rendering a raw UUID as a name).
+   */
+  prompt_name?: string | null;
+  catalog_model_name?: string | null;
+  catalog_model_provider_model?: string | null;
   tools: string[];
   backend: BackendConfig;
   hitl: HITLConfig;

@@ -28,7 +28,7 @@ export function SkillPillMultiSelect({
       (files ?? [])
         .map((f) => f.path)
         .filter((p) => p.endsWith("SKILL.md"))
-        .sort(),
+        .sort((a, b) => a.localeCompare(b)),
     [files],
   );
 
@@ -81,10 +81,11 @@ export function MemoryPillMultiSelect({
     () =>
       (files ?? [])
         .map((f) => f.path)
-        .sort()
+        .sort((a, b) => a.localeCompare(b))
         .map((path) => ({
           value: path,
-          label: path.split("/").filter(Boolean).pop() ?? path,
+          // Last non-empty path segment (Sonar S7750: findLast over filter().pop()).
+          label: path.split("/").findLast((part) => part.length > 0) ?? path,
         })),
     [files],
   );

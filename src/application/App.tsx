@@ -9,6 +9,10 @@ const RagPage = lazy(() => import("@/application/pages/RagPage"));
 const SkillsPage = lazy(() => import("@/application/pages/SkillsPage"));
 const MemoriesPage = lazy(() => import("@/application/pages/MemoriesPage"));
 const McpRegistryPage = lazy(() => import("@/application/pages/McpRegistryPage"));
+const PromptsPage = lazy(() => import("@/application/pages/PromptsPage"));
+const ModelsPage = lazy(() => import("@/application/pages/ModelsPage"));
+const CronsPage = lazy(() => import("@/application/pages/CronsPage"));
+const TracesPage = lazy(() => import("@/application/pages/TracesPage"));
 
 function PageFallback() {
   return (
@@ -25,6 +29,10 @@ function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/chat" replace />} />
       <Route path="/agents" element={<AgentsPage />} />
+      <Route path="/prompts" element={<PromptsPage />} />
+      <Route path="/models" element={<ModelsPage />} />
+      <Route path="/crons" element={<CronsPage />} />
+      <Route path="/traces/:threadId?" element={<TracesPage />} />
       <Route path="/chat/:threadId?" element={<ChatPage />} />
       <Route path="/rag" element={<RagPage />} />
       <Route path="/skills" element={<SkillsPage />} />

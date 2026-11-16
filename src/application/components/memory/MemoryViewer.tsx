@@ -137,7 +137,7 @@ export default function MemoryViewer({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = storePath.split("/").filter(Boolean).pop() ?? "memory.md";
+    a.download = storePath.split("/").findLast((part) => part.length > 0) ?? "memory.md";
     document.body.appendChild(a);
     a.click();
     a.remove();

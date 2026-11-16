@@ -70,7 +70,7 @@ export default function CreateAgentDialog({
     );
   }
 
-  function handleYamlSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleYamlSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     const file = fileInputRef.current?.files?.[0];
     if (!name.trim()) {

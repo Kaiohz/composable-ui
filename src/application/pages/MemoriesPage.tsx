@@ -22,9 +22,9 @@ export default function MemoriesPage() {
       >
         <div className="flex flex-wrap items-start justify-between gap-4">
           <p className="max-w-md font-body text-sm text-muted">
-            Manage markdown memory files. Each memory lives at
-            <span className="font-mono text-fg-2"> /memories/&lt;name&gt;.md </span>
-            and can be referenced by agents.
+            Manage markdown memory files. Each memory lives at{" "}
+            <span className="font-mono text-fg-2">/memories/&lt;name&gt;.md</span> and can be
+            referenced by agents.
           </p>
           <div className="flex items-center gap-3">
             <Badge variant="default" data-od-id="memory-count">

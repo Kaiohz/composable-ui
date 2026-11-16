@@ -52,7 +52,13 @@ export function PillMultiSelect({
   }
 
   return (
-    <div className="flex flex-wrap gap-1.5" role="group" data-od-id="pill-multi-select">
+    <fieldset
+      data-od-id="pill-multi-select"
+      // Native fieldset gives the group role without an explicit ARIA role
+      // (Sonar S6819); Tailwind preflight + the explicit classes below keep
+      // the visual identical to the previous plain wrapper.
+      className="flex min-w-0 flex-wrap gap-1.5 border-0 p-0 m-0"
+    >
       {visibleOptions.map((option) => {
         const isActive = selectedSet.has(option.value);
         return (
@@ -73,7 +79,7 @@ export function PillMultiSelect({
           </button>
         );
       })}
-    </div>
+    </fieldset>
   );
 }
 

@@ -56,9 +56,7 @@ export function CreateMcpServerDialog({
 }: Readonly<CreateMcpServerDialogProps>) {
   const isEdit = Boolean(editServer);
   const base = editServer ?? prefill;
-  const [sourceType, setSourceType] = useState<McpSourceType>(
-    base?.source_type ?? "external",
-  );
+  const [sourceType, setSourceType] = useState<McpSourceType>(base?.source_type ?? "external");
   const [name, setName] = useState(base?.name ?? "");
   const [url, setUrl] = useState(base?.url ?? "");
   const [openapiUrl, setOpenapiUrl] = useState(base?.openapi_url ?? "");

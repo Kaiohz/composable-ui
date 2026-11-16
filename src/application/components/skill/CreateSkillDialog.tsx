@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type SyntheticEvent } from "react";
 import { toast } from "sonner";
 import { useCreateSkill } from "@/application/hooks/skill/useCreateSkill";
 import { extractApiMessage } from "@/infrastructure/api/store/storeApi";
@@ -39,7 +39,7 @@ export function CreateSkillDialog({ open, onOpenChange }: Readonly<CreateSkillDi
     onOpenChange(false);
   }
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName) {

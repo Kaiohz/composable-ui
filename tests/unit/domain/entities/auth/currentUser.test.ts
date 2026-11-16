@@ -3,7 +3,12 @@ import { getDisplayName, getInitials, type UserProfile } from "@/domain/entities
 
 describe("getDisplayName", () => {
   it("returns the name when present", () => {
-    const profile: UserProfile = { userId: "u1", name: "Jane Doe", username: "jane", email: "j@x.com" };
+    const profile: UserProfile = {
+      userId: "u1",
+      name: "Jane Doe",
+      username: "jane",
+      email: "j@x.com",
+    };
     expect(getDisplayName(profile)).toBe("Jane Doe");
   });
 

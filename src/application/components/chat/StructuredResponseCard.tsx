@@ -27,11 +27,10 @@ export default function StructuredResponseCard({
   try {
     displayText = JSON.stringify(data, null, 2);
   } catch {
-    try {
-      displayText = String(data);
-    } catch {
-      displayText = "[Unable to display data]";
-    }
+    // JSON.stringify can only fail for structured data it cannot represent
+    // (cyclic references, BigInt); there is no meaningful fallback string —
+    // show an explicit placeholder instead of "[object Object]" (S6551).
+    displayText = "[Unable to display data]";
   }
 
   const handleCopy = async () => {

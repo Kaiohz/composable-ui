@@ -92,14 +92,16 @@ export default function FileContentPanel({
               </pre>
             )}
 
-            {tableCount > 0 && normalized && normalized.kind === "markdown" && (
+            {tableCount > 0 && normalized?.kind === "markdown" && (
               <div className="mt-6 space-y-4">
                 <h4 className="font-display text-sm text-fg">Tables ({tableCount})</h4>
                 {normalized.tables.map((table, tableIdx) => {
                   const lines = table.markdown.split("\n");
                   return (
                     <pre
-                      key={`table-${tableIdx}`}
+                      // Content-addressed key with the index tiebreaker
+                      // (Sonar S6479: no index-only keys).
+                      key={`table-${table.markdown.length}-${table.markdown.slice(0, 48)}-${tableIdx}`}
                       className="font-mono text-xs text-fg-2 bg-bg p-4 overflow-x-auto whitespace-pre-wrap border border-border"
                     >
                       {lines.map((line, lineIdx) => (
@@ -113,7 +115,7 @@ export default function FileContentPanel({
               </div>
             )}
 
-            {tableCount > 0 && normalized && normalized.kind === "legacy" && (
+            {tableCount > 0 && normalized?.kind === "legacy" && (
               <div className="mt-6 space-y-4">
                 <h4 className="font-display text-sm text-fg">Tables ({tableCount})</h4>
                 {normalized.tables.map((table, tableIdx) => (

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 
 describe("ClassicalQueryRequest", () => {
   it("allows constructing an object with all required fields", async () => {
-    const { ClassicalQueryRequest } = await import("@/domain/entities/rag/queryRequest");
+    await import("@/domain/entities/rag/queryRequest");
 
     const request: ClassicalQueryRequest = {
       working_dir: "/data/projects/acme",
@@ -24,7 +24,7 @@ describe("ClassicalQueryRequest", () => {
   });
 
   it("accepts optional vector_distance_threshold", async () => {
-    const { ClassicalQueryRequest } = await import("@/domain/entities/rag/queryRequest");
+    await import("@/domain/entities/rag/queryRequest");
 
     const withThreshold: ClassicalQueryRequest = {
       working_dir: "/data/test",
@@ -41,7 +41,7 @@ describe("ClassicalQueryRequest", () => {
   });
 
   it("allows omitting optional vector_distance_threshold", async () => {
-    const { ClassicalQueryRequest } = await import("@/domain/entities/rag/queryRequest");
+    await import("@/domain/entities/rag/queryRequest");
 
     const withoutThreshold: ClassicalQueryRequest = {
       working_dir: "/data/test",
@@ -57,7 +57,7 @@ describe("ClassicalQueryRequest", () => {
   });
 
   it("accepts all valid ClassicalQueryMode values", async () => {
-    const { ClassicalQueryMode } = await import("@/domain/entities/rag/queryRequest");
+    await import("@/domain/entities/rag/queryRequest");
 
     const validModes: ClassicalQueryMode[] = ["vector", "hybrid"];
 

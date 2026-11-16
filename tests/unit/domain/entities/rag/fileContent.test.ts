@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 
 describe("DocumentMetadata", () => {
   it("allows constructing an object with format_type and mime_type", async () => {
-    const { DocumentMetadata } = await import("@/domain/entities/rag/fileContent");
+    await import("@/domain/entities/rag/fileContent");
 
     const metadata: DocumentMetadata = {
       format_type: "markdown",
@@ -14,7 +14,7 @@ describe("DocumentMetadata", () => {
   });
 
   it("accepts various format and mime type combinations", async () => {
-    const { DocumentMetadata } = await import("@/domain/entities/rag/fileContent");
+    await import("@/domain/entities/rag/fileContent");
 
     const pdfMeta: DocumentMetadata = {
       format_type: "pdf",
@@ -34,7 +34,7 @@ describe("DocumentMetadata", () => {
 
 describe("TableData", () => {
   it("allows constructing an object with headers and rows", async () => {
-    const { TableData } = await import("@/domain/entities/rag/fileContent");
+    await import("@/domain/entities/rag/fileContent");
 
     const table: TableData = {
       headers: ["Name", "Age", "City"],
@@ -52,7 +52,7 @@ describe("TableData", () => {
   });
 
   it("allows an empty rows array", async () => {
-    const { TableData } = await import("@/domain/entities/rag/fileContent");
+    await import("@/domain/entities/rag/fileContent");
 
     const emptyTable: TableData = {
       headers: ["Col1", "Col2"],
@@ -64,7 +64,7 @@ describe("TableData", () => {
   });
 
   it("allows a single-row table", async () => {
-    const { TableData } = await import("@/domain/entities/rag/fileContent");
+    await import("@/domain/entities/rag/fileContent");
 
     const singleRow: TableData = {
       headers: ["Metric", "Value"],
@@ -78,7 +78,7 @@ describe("TableData", () => {
 
 describe("FileContentResponse", () => {
   it("allows constructing a response with content, metadata, and tables", async () => {
-    const { FileContentResponse } = await import("@/domain/entities/rag/fileContent");
+    await import("@/domain/entities/rag/fileContent");
 
     const response: FileContentResponse = {
       content: "This is the extracted text content.",
@@ -103,7 +103,7 @@ describe("FileContentResponse", () => {
   });
 
   it("allows constructing a response with empty tables", async () => {
-    const { FileContentResponse } = await import("@/domain/entities/rag/fileContent");
+    await import("@/domain/entities/rag/fileContent");
 
     const response: FileContentResponse = {
       content: "Plain text with no tables.",
@@ -119,7 +119,7 @@ describe("FileContentResponse", () => {
   });
 
   it("allows constructing a response with multiple tables", async () => {
-    const { FileContentResponse } = await import("@/domain/entities/rag/fileContent");
+    await import("@/domain/entities/rag/fileContent");
 
     const response: FileContentResponse = {
       content: "Document with multiple tables.",

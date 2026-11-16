@@ -5,6 +5,12 @@ React frontend for interacting with the [composable-agents](https://github.com/s
 ## Features
 
 - **Agent management** — Create, view, configure, and delete agents via YAML file upload
+- **Prompts registry UI** — `/prompts` manage the local per-user prompt registry: list/create/edit metadata, view immutable numeric version history, add new content versions (`New Version` action), read any version's verbatim content, and delete an unreferenced prompt (in-use prompts surface a `409 Conflict` without losing the current view or the dialog state).
+- **Models catalog UI** — `/models` manage the metadata-only per-user model catalog (display name, provider, provider model identifier, optional base URL override). The edit dialog preserves an existing `base_url` unless the operator explicitly clears it; there are no API-key or credential fields anywhere in the UI.
+- **Crons UI** — `/crons` manage per-user scheduled agent invocations: create/edit with five-field cron + IANA timezone validation (UTC default), enable/disable with immediate `next_run_at` recalculation, **Run now** including disabled jobs, and a run-history dialog with trigger, terminal status, timing, safe error summary, CHAT/CRON thread-source pill, and a direct link to the run's trace.
+- **Traces Explorer UI** — `/traces` (and `/traces/:threadId`) read-only global execution history: exact (case-sensitive) agent-name filter, cursor pagination with an accumulating "Load more" (a pending guard prevents double fetch), per-row source/time/event/turn counts, a noninteractive CHAT/CRON source pill, and a read-only detail reusing the chat `MessageList` timeline (no composer / resume).
+- **Thread source pills** — A noninteractive `ThreadSourceBadge` (read-only active-skills pill styling, `data-od-id="thread-source-badge"`, accessible label `Thread source: …`) distinguishes `CHAT` from `CRON` in the `ThreadSidebar`, the chat header, the trace list/detail, and the cron run-history.
+- **Agent create/edit selectors** — The agent form exposes Registry/Inline/File prompt modes and Catalog/Custom model modes as single-select controls; Latest version is the default for registry prompts, and pinned version uses a numeric selector. Switching modes clears mutually exclusive fields before serialization into the multipart YAML flow. The read-only `AgentConfigViewer` resolves `prompt_ref`/`model_ref` against the user's registries to show human-readable names, with "Loading registry…" / "Registry unavailable" states instead of raw UUIDs.
 - **Real-time chat with trace timeline** — Stream AI responses via SSE as `TraceEvent`s and render a per-turn timeline (thinking, content, tool calls, subagent panels)
 - **Human-in-the-loop** — Review and approve/reject tool calls before execution
 - **Thread history** -- Conversation threads grouped by agent in a sidebar
@@ -273,6 +279,13 @@ tests/
 | `/agents`          | AgentsPage   | List, create, view, and delete agents                                          |
 | `/chat/:threadId?` | ChatPage     | Chat with agents, streaming responses, HITL validation                         |
 | `/rag`             | RagPage      | Browse MinIO folders and files with breadcrumb navigation                      |
+| `/skills`          | SkillsPage   | Browse/edit skill files served from the LangGraph store                        |
+| `/memories`        | MemoriesPage | Browse/edit memory files served from the LangGraph store                       |
+| `/mcp-registry`    | McpRegistryPage | Browse/validate MCP servers exposed by the mcp-raganything registry      |
+| `/prompts`         | PromptsPage  | List, create, edit metadata, inspect immutable versions, and delete prompts    |
+| `/models`          | ModelsPage   | List, create, edit metadata-only model definitions (no credential UI)          |
+| `/crons`           | CronsPage    | List, create, validate, enable/disable, Run now, and inspect run history       |
+| `/traces/:threadId?` | TracesPage | Read-only global execution history with exact agent filter, source pills, detail |
 | `/settings`        | SettingsPage | Theme, typography, LLM provider (backend-persisted), API keys (backend-persisted), reset, and Sign out |
 
 ## Agent Configuration
@@ -283,6 +296,9 @@ The agent creation/edit form (in `CreateAgentDialog`) reflects the current backe
 - **Debug toggle removed** — The Debug toggle has been removed from the form.
 - **Tools section removed** — Tools are managed via MCP servers only. The dedicated "Tools" section no longer appears in the form.
 - **Subagents section** — A new **"Add from existing agents"** dropdown lets you select an existing agent as a subagent reference (populating `agent_ref`). When a subagent references an existing agent, a **`ref:`** badge is displayed next to its name and the name field becomes read-only (the name is derived from the referenced agent).
+- **Prompt source (NEW)** — Choose **Registry prompt**, **Inline system prompt**, or **Prompt file**. Selecting Registry prompt opens single-select of the user's prompts plus a **Latest / Pinned** version-mode toggle; pinned uses a numeric version selector populated from `GET /prompts/{id}/versions`. Switching modes clears the inactive fields before the YAML is serialized: `prompt_ref` is mutually exclusive with `system_prompt` / `system_prompt_file`.
+- **Model source (NEW)** — Choose **Catalog model** (single select from the metadata-only model catalog, no credential UI) or **Custom model string** (legacy free-form `model`). Switching to custom clears `model_ref`; switching to catalog clears the legacy `model` field.
+- **Registry loading / error states** — Agent viewer resolves `prompt_ref`/`model_ref` against the user's registries and surfaces `Loading registry…` / `Registry unavailable — reference could not be verified` (per-registry Retry) rather than a misleading "not in registry" for a resolvable reference.
 
 ## RAG File Browser
 

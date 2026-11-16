@@ -32,11 +32,11 @@ export default function ThinkingBlock({ text, source = null }: Readonly<Thinking
         />
       </button>
       {isExpanded && (
-        <div id={panelId} role="region" aria-label={`${label} content`}>
+        <section id={panelId} aria-label={`${label} content`}>
           <pre className="overflow-x-auto whitespace-pre-wrap border-t border-border bg-bg px-3 py-2 font-mono text-xs leading-relaxed text-fg-2">
             {text}
           </pre>
-        </div>
+        </section>
       )}
     </div>
   );
