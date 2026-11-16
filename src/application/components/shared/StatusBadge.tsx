@@ -1,8 +1,16 @@
+import type { ReactNode } from "react";
 import { cn } from "@/application/lib/utils";
 
 interface StatusBadgeProps {
   status: string;
   className?: string;
+  /**
+   * Optional label override. When provided, the content replaces the
+   * formatted `status` text while the token-derived color variant still
+   * comes from `status` — lets callers compose richer labels (e.g. KPI
+   * counts) without redefining the variant styles.
+   */
+  children?: ReactNode;
 }
 
 type BadgeVariant = "success" | "warn" | "accent" | "danger" | "default";
@@ -64,7 +72,7 @@ function formatLabel(status: string): string {
   return status.replaceAll("_", " ").replace(/\b\w/g, (m) => m.toUpperCase());
 }
 
-export default function StatusBadge({ status, className }: Readonly<StatusBadgeProps>) {
+export default function StatusBadge({ status, className, children }: Readonly<StatusBadgeProps>) {
   const variant = resolveVariant(status);
 
   return (
@@ -75,7 +83,7 @@ export default function StatusBadge({ status, className }: Readonly<StatusBadgeP
         className,
       )}
     >
-      {formatLabel(status)}
+      {children ?? formatLabel(status)}
     </span>
   );
 }

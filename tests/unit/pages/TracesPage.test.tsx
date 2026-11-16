@@ -94,6 +94,19 @@ function renderTracesAt(path: string) {
   );
 }
 
+/**
+ * Step-LLM-usage note: `/traces` now defaults to the Dashboard tab (spec:
+ * LLM Usage Dashboard §8/§15). The existing per-thread history moved into
+ * the Threads sub-tab; every list test below opens it first. All list
+ * behaviour assertions are unchanged.
+ */
+async function renderThreadsListAt(path: string) {
+  const view = renderTracesAt(path);
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("tab", { name: /threads/i }));
+  return view;
+}
+
 describe("TracesPage — list", () => {
   beforeEach(() => {
     tracesState.refetch.mockReset();
@@ -108,7 +121,7 @@ describe("TracesPage — list", () => {
     threadHistoryState.isLoading = false;
   });
 
-  it("renders trace rows with agent, source pill, thread id, counts and timestamps", () => {
+  it("renders trace rows with agent, source pill, thread id, counts and timestamps", async () => {
     tracesState.pages = [
       createTracePage({
         items: [
@@ -123,7 +136,7 @@ describe("TracesPage — list", () => {
       }),
     ];
 
-    renderTracesAt("/traces");
+    await renderThreadsListAt("/traces");
 
     expect(screen.getByText(/support-agent/i)).toBeInTheDocument();
     // Thread ID is visible (short or full form).
@@ -133,7 +146,7 @@ describe("TracesPage — list", () => {
     expect(screen.getByLabelText(/thread source: cron/i)).toBeInTheDocument();
   });
 
-  it("exposes each trace row as a native link to its detail (BUG-004)", () => {
+  it("exposes each trace row as a native link to its detail (BUG-004)", async () => {
     tracesState.pages = [
       createTracePage({
         items: [
@@ -146,7 +159,7 @@ describe("TracesPage — list", () => {
       }),
     ];
 
-    renderTracesAt("/traces");
+    await renderThreadsListAt("/traces");
 
     const row = screen.getByRole("link", { name: /support-agent/i });
     expect(row).toHaveAttribute("href", "/traces/55555555-5555-4555-8555-555555555555");
@@ -170,6 +183,7 @@ describe("TracesPage — list", () => {
 
     const view = renderTracesAt("/traces");
 
+    await user.click(screen.getByRole("tab", { name: /threads/i }));
     await user.click(screen.getByRole("button", { name: /load more|next/i }));
 
     await waitFor(() => {
@@ -199,11 +213,11 @@ describe("TracesPage — list", () => {
     expect(screen.getByText(/other-agent/i)).toBeInTheDocument();
   });
 
-  it("no Load more control once the last page is reached", () => {
+  it("no Load more control once the last page is reached", async () => {
     tracesState.pages = [createTracePage({ next_cursor: null })];
     tracesState.hasNextPage = false;
 
-    renderTracesAt("/traces");
+    await renderThreadsListAt("/traces");
 
     expect(screen.queryByRole("button", { name: /load more|next/i })).not.toBeInTheDocument();
   });
@@ -215,7 +229,9 @@ describe("TracesPage — list", () => {
 
     renderTracesAt("/traces");
 
-    // Page 2 requested first (page-1 rows loaded).
+    // Page 2 requested first (page-1 rows loaded). The Tabs default view is
+    // the Dashboard; the list lives in the Threads sub-tab.
+    await user.click(screen.getByRole("tab", { name: /threads/i }));
     await user.click(screen.getByRole("button", { name: /load more|next/i }));
     await waitFor(() => {
       expect(tracesState.fetchNextPage).toHaveBeenCalledTimes(1);
@@ -231,10 +247,10 @@ describe("TracesPage — list", () => {
     expect(tracesState.fetchNextPage).toHaveBeenCalledTimes(1);
   });
 
-  it("shows a filtered no-results state, not an error, when the filter matches nothing", () => {
+  it("shows a filtered no-results state, not an error, when the filter matches nothing", async () => {
     tracesState.pages = [createTracePage({ items: [], next_cursor: null })];
 
-    renderTracesAt("/traces");
+    await renderThreadsListAt("/traces");
 
     expect(screen.getByText(/no traces|no results/i)).toBeInTheDocument();
     expect(screen.queryByText(/request failed|failed to load/i)).toBeNull();
@@ -246,16 +262,17 @@ describe("TracesPage — list", () => {
     const user = userEvent.setup();
 
     renderTracesAt("/traces");
+    await user.click(screen.getByRole("tab", { name: /threads/i }));
 
     expect(screen.getByText(/trace service unavailable/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /retry/i }));
     expect(tracesState.refetch).toHaveBeenCalled();
   });
 
-  it("shows a loading state while the list loads", () => {
+  it("shows a loading state while the list loads", async () => {
     tracesState.isLoading = true;
 
-    renderTracesAt("/traces");
+    await renderThreadsListAt("/traces");
 
     expect(screen.getByText(/loading/i)).toBeInTheDocument();
   });
@@ -263,6 +280,7 @@ describe("TracesPage — list", () => {
   it("debounces the agent filter — one applied filter, not one request per keystroke", async () => {
     const user = userEvent.setup();
     renderTracesAt("/traces");
+    await user.click(await screen.findByRole("tab", { name: /threads/i }));
 
     await user.type(screen.getByLabelText(/agent/i), "digest-agent");
 
