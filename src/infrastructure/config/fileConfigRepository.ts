@@ -1,5 +1,6 @@
 import { toast } from "sonner";
 import { AppConfig, AppConfigSchema } from "@/domain/entities/config/appConfig";
+import { completeBuiltInMcpServers } from "@/domain/entities/config/builtInMcpServers";
 import { IConfigRepository } from "@/domain/ports/config/configRepository";
 
 export class FileConfigRepository implements IConfigRepository {
@@ -27,7 +28,11 @@ export class FileConfigRepository implements IConfigRepository {
       }
 
       const rawConfig = await response.json();
-      const config = AppConfigSchema.parse(rawConfig);
+      const parsed = AppConfigSchema.parse(rawConfig);
+      // Complete the built-in MCP list (Memories, Web Search mounts hosted by
+      // raganything) so the registry page shows them like config-declared RAG
+      // built-ins, without requiring a config.json redeploy.
+      const config = completeBuiltInMcpServers(parsed);
       this.config = config;
       return config;
     } catch (error) {
