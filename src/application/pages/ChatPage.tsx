@@ -7,7 +7,6 @@ import ChatInput from "@/application/components/chat/ChatInput";
 import { useChatStore } from "@/application/stores/useChatStore";
 import { useThreads } from "@/application/hooks/chat/useThreads";
 import { useAgentConfig } from "@/application/hooks/agent/useAgentConfig";
-
 export default function ChatPage() {
   const { threadId } = useParams<{ threadId?: string }>();
   const setActiveThread = useChatStore((s) => s.setActiveThread);
@@ -45,7 +44,7 @@ export default function ChatPage() {
                 agentName={agentName}
                 agentHasResponseFormat={agentHasResponseFormat}
               />
-              <ChatInput threadId={threadId} />
+              <ChatInput threadId={threadId} agentConfig={agentConfig} />
             </div>
           ) : (
             <div

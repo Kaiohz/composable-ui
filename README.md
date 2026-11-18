@@ -12,6 +12,8 @@ React frontend for interacting with the [composable-agents](https://github.com/s
 - **Thread source pills** — A noninteractive `ThreadSourceBadge` (read-only active-skills pill styling, `data-od-id="thread-source-badge"`, accessible label `Thread source: …`) distinguishes `CHAT` from `CRON` in the `ThreadSidebar`, the chat header, the trace list/detail, and the cron run-history.
 - **Agent create/edit selectors** — The agent form exposes Registry/Inline/File prompt modes and Catalog/Custom model modes as single-select controls; Latest version is the default for registry prompts, and pinned version uses a numeric selector. Switching modes clears mutually exclusive fields before serialization into the multipart YAML flow. The read-only `AgentConfigViewer` resolves `prompt_ref`/`model_ref` against the user's registries to show human-readable names, with "Loading registry…" / "Registry unavailable" states instead of raw UUIDs.
 - **Real-time chat with trace timeline** — Stream AI responses via SSE as `TraceEvent`s and render a per-turn timeline (thinking, content, tool calls, subagent panels)
+- **Chat attachments** — Attach images and documents from the chat composer (📎 `chat-attach-button`). Images always allowed and sent to the LLM as vision content blocks (preview rendered inline in the composer, the pending bubble and history via the user's LangGraph store). Documents (PDF/DOCX/…) only offered when the agent exposes a `/files/mcp` MCP server (backend-authoritative policy — API clients are rejected with an explicit 422 otherwise); they render as file chips (icon, name, size, MIME) and are never displayed as raw content. Sent as base64 in the `attachments` field of the chat JSON body; never uploaded by the frontend itself.
+- **PDF tool result actions** — A valid `create_pdf` tool result renders **Preview** and **Download** actions: Preview opens a dialog that fetches the PDF from the store API **only on click**, then lazily loads `react-pdf` (worker chunk-split, `.mjs` served as `application/javascript` by nginx — see `nginx.conf`) and renders paginated with prev/next navigation and `Page X / N`; Download saves an `application/pdf` blob named after the tool result. Other tool results keep the generic collapsed rendering.
 - **Human-in-the-loop** — Review and approve/reject tool calls before execution
 - **Thread history** -- Conversation threads grouped by agent in a sidebar
 - **RAG file browser** -- Browse MinIO folders and files with breadcrumb navigation and file metadata display. Create new folders (`CreateFolderDialog` triggered by the "New folder" button in the RAG browse tab) and delete files or folders via a trash-icon row action confirmed through a `ConfirmDeleteDialog`. Folder deletion is recursive and targets the MinIO prefix; file deletion targets a single object. Both calls hit the `POST /api/v1/files/folders` and `DELETE /api/v1/files` / `DELETE /api/v1/files/folders` endpoints exposed by `mcp-raganything`. Multi-file upload with drag-and-drop and folder upload support (see [File upload](#file-upload)).
@@ -26,7 +28,8 @@ React frontend for interacting with the [composable-agents](https://github.com/s
 - **Styling**: Tailwind CSS 4 + shadcn/ui + Framer Motion + lucide-react icons
 - **State**: Zustand (local) + TanStack React Query (server)
 - **Forms**: React Hook Form + Zod validation
-- **Testing**: Vitest + Testing Library
+- **Testing**: Vitest + Testing Library (feature QA specs run in `soludev-compose-apps/bricks/e2e`)
+- **PDF preview**: react-pdf 11 (lazy-loaded `PdfCanvas` + PDF.js worker as a separate Vite asset)
 - **Linting**: ESLint + Prettier
 
 ## Design System
@@ -143,7 +146,7 @@ bun run preview
 ## Testing
 
 ```bash
-bun run test            # Run all tests (119 files, 780 tests passing)
+bun run test            # Run all tests (157 files, 1086 tests passing)
 bun run test:watch      # Watch mode
 bun run test:ui         # Vitest UI
 bun run test:coverage   # With coverage report
@@ -239,7 +242,7 @@ src/
   application/             # React UI layer
     components/
       agent/               # AgentCard, AgentGrid, CreateAgentDialog, AgentConfigViewer
-      chat/                # ChatInput, ChatMessage, MessageList, HITLReviewPanel, ThinkingBlock, ToolCallBadge, ToolResultBlock, SubagentPanel
+      chat/                # ChatInput, ChatMessage, MessageList, HITLReviewPanel, ThinkingBlock, ToolCallBadge, ToolResultBlock, SubagentPanel, ChatAttachmentList, PdfPreviewDialog, PdfCanvas
       layout/              # AppShell, Sidebar (System section + Settings nav), MainHeader (mobile menu + title only), ThreadSidebar
       rag/                 # BreadcrumbBar, FileList, FileRow, FolderRow, CreateFolderDialog, ConfirmDeleteDialog, FileContentPanel, IndexActionMenu, QueryPanel, QueryResults, QueryOptions, RagTabBar, UploadButton, WorkspaceSelector
       settings/            # LlmSettingsCard, ApiKeysCard (backend-persisted credential cards)
@@ -248,7 +251,7 @@ src/
     hooks/
       agent/               # useAgents, useCreateAgent, useDeleteAgent, useUpdateAgent, useAgentConfig
       auth/                # useApiKeys (list / create / revoke)
-      chat/                # useThreads, useCreateThread, useDeleteThread, useThreadHistory, useSendMessage, useStreamChat
+      chat/                # useThreads, useCreateThread, useDeleteThread, useThreadHistory, useSendMessage, useStreamChat, useStoredAttachmentImages
       config/              # useConfig
       rag/                 # useFolders, useFiles, useReadFile, useUploadFile, useCreateFolder, useDeleteFile, useDeleteFolder, useClassicalIndexFile, useClassicalIndexFolder, useClassicalQuery
       settings/            # useLlmSettings (get / upsert / delete)

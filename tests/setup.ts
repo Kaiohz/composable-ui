@@ -41,6 +41,22 @@ HTMLElement.prototype.releasePointerCapture = vi.fn();
 HTMLElement.prototype.scrollIntoView = vi.fn();
 
 // Mock window.matchMedia
+// (jsdom 25 implements no IDL reflection for ``loading`` on HTMLImageElement;
+// components render the standard attribute — mirror it as a property so
+// behavioral tests can assert it the way real browsers expose it.)
+if (!Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "loading")) {
+  Object.defineProperty(HTMLImageElement.prototype, "loading", {
+    configurable: true,
+    get() {
+      return this.getAttribute("loading");
+    },
+    set(value: string | null) {
+      if (value == null) this.removeAttribute("loading");
+      else this.setAttribute("loading", value);
+    },
+  });
+}
+
 Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: vi.fn().mockImplementation((query: string) => ({

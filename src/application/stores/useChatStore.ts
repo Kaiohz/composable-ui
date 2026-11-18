@@ -4,6 +4,28 @@ import {
   TraceEventType,
   getStructuredResponseFromAIEvent,
 } from "@/domain/entities/chat/traceEvent";
+import type { ChatAttachmentDisplay } from "@/domain/entities/chat/attachment";
+
+/**
+ * Composer-side pending attachment (REQ-067/068): the picked browser ``File``
+ * plus display metadata. ``file`` is a runtime object — it lives only while
+ * the draft exists (send / restore-from-error / remove).
+ */
+export interface ComposerAttachment {
+  id: string;
+  file: File;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  kind: "image" | "document";
+  previewUrl: string | null;
+}
+
+/** Draft saved when a submit starts, restored verbatim on stream error (REQ-071). */
+export interface ComposerBackup {
+  text: string;
+  attachments: ComposerAttachment[];
+}
 
 interface SubagentState {
   content: string;
@@ -27,13 +49,22 @@ interface ChatState {
   streamingTurn: StreamingTurn | null;
   isStreaming: boolean;
   pendingUserMessage: string | null;
+  /** Attachment metadata of the pending user message (REQ-069). */
+  pendingUserAttachments: ChatAttachmentDisplay[] | null;
+  /** Draft kept while a turn runs; restored into the composer on error (REQ-071). */
+  composerBackup: ComposerBackup | null;
+  /** Backup popped on error; consumed once by the composer (REQ-071). */
+  composerRestoredDraft: ComposerBackup | null;
   error: string | null;
   setActiveThread: (id: string | null) => void;
   initStreamingTurn: (turnId: string) => void;
   appendTraceEvent: (event: TraceEvent) => void;
   clearStream: () => void;
   setStreaming: (streaming: boolean) => void;
-  setPendingUserMessage: (msg: string | null) => void;
+  setPendingUserMessage: (msg: string | null, attachments?: ChatAttachmentDisplay[] | null) => void;
+  backupComposer: (backup: ComposerBackup | null) => void;
+  restoreComposerBackup: () => void;
+  consumeComposerRestoredDraft: () => void;
   setError: (msg: string | null) => void;
 }
 
@@ -78,6 +109,9 @@ export const useChatStore = create<ChatState>((set) => ({
   streamingTurn: null,
   isStreaming: false,
   pendingUserMessage: null,
+  pendingUserAttachments: null,
+  composerBackup: null,
+  composerRestoredDraft: null,
   error: null,
   setActiveThread: (id) => set({ activeThreadId: id }),
   initStreamingTurn: (turnId) => set({ streamingTurn: emptyStreamingTurn(turnId) }),
@@ -113,9 +147,21 @@ export const useChatStore = create<ChatState>((set) => ({
       streamingTurn: null,
       isStreaming: false,
       pendingUserMessage: null,
+      pendingUserAttachments: null,
+      composerBackup: null,
+      composerRestoredDraft: null,
       error: null,
     }),
   setStreaming: (streaming) => set({ isStreaming: streaming }),
-  setPendingUserMessage: (msg) => set({ pendingUserMessage: msg }),
+  setPendingUserMessage: (msg, attachments) =>
+    set({ pendingUserMessage: msg, pendingUserAttachments: attachments ?? null }),
+  backupComposer: (backup) => set({ composerBackup: backup }),
+  restoreComposerBackup: () =>
+    set((state) =>
+      state.composerBackup
+        ? { composerRestoredDraft: state.composerBackup, composerBackup: null }
+        : state,
+    ),
+  consumeComposerRestoredDraft: () => set({ composerRestoredDraft: null }),
   setError: (msg) => set({ error: msg }),
 }));

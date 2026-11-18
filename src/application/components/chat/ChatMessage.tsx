@@ -12,6 +12,8 @@ import ToolResultBlock from "@/application/components/chat/ToolResultBlock";
 import SubagentPanel from "@/application/components/chat/SubagentPanel";
 import StructuredResponseCard from "@/application/components/chat/StructuredResponseCard";
 import { MARKDOWN_PROSE_CLASSES } from "@/application/components/chat/markdownStyles";
+import ChatAttachmentList from "@/application/components/chat/ChatAttachmentList";
+import { useStoredAttachmentImages } from "@/application/hooks/chat/useStoredAttachmentImages";
 import { useCurrentUser } from "@/application/hooks/auth/useCurrentUser";
 import { getDisplayName } from "@/domain/entities/auth/currentUser";
 
@@ -114,6 +116,16 @@ function ChatMessageImpl({
     () => (events ? events.filter((e) => e.type === TraceEventType.HITL_DECISION) : []),
     [events],
   );
+  // History attachments (REQ-070): stored images are resolved from the
+  // LangGraph store (REQ-027); documents render as plain metadata chips.
+  const resolvedImages = useStoredAttachmentImages(threadId, message.attachments);
+  const humanAttachments = useMemo(
+    () =>
+      message.attachments?.map((att) =>
+        resolvedImages[att.id] ? { ...att, url: resolvedImages[att.id] } : att,
+      ) ?? null,
+    [message.attachments, resolvedImages],
+  );
 
   if (isHuman) {
     return (
@@ -132,7 +144,14 @@ function ChatMessageImpl({
             </time>
           </div>
           <div className="chat-msg-bubble border border-border-soft bg-surface-warm p-4 text-sm text-fg">
-            <p className="whitespace-pre-wrap break-words leading-loose">{message.content}</p>
+            {humanAttachments && (
+              <div className="mb-3 flex flex-col items-end gap-2">
+                <ChatAttachmentList attachments={humanAttachments} />
+              </div>
+            )}
+            {message.content ? (
+              <p className="whitespace-pre-wrap break-words leading-loose">{message.content}</p>
+            ) : null}
           </div>
         </article>
       </div>

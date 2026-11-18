@@ -105,6 +105,7 @@ export default function MessageList({
   const streamingTurn = useChatStore((s) => s.streamingTurn);
   const isStreaming = useChatStore((s) => s.isStreaming);
   const pendingUserMessage = useChatStore((s) => s.pendingUserMessage);
+  const pendingUserAttachments = useChatStore((s) => s.pendingUserAttachments);
   const error = useChatStore((s) => s.error);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -192,7 +193,7 @@ export default function MessageList({
           </div>
         )}
 
-        {pendingUserMessage && (
+        {pendingUserMessage !== null && (
           <ChatMessage
             message={{
               role: MessageRole.HUMAN,
@@ -203,6 +204,9 @@ export default function MessageList({
               structured_response: null,
               thinking: null,
               turn_id: null,
+              // REQ-069: the optimistic pending message keeps its attachments
+              // until the history reloads and the trace projection takes over.
+              attachments: pendingUserAttachments,
             }}
             agentName={agentName}
             threadId={threadId}
