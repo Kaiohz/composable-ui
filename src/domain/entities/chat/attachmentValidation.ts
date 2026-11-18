@@ -58,6 +58,43 @@ function isSupportedDocument(file: AttachmentFileInput): boolean {
   return SUPPORTED_DOCUMENT_MIME_PREFIXES.some((prefix) => file.type.startsWith(prefix));
 }
 
+/** Issue attached to an image file, or null when the file passes the image rules. */
+function imageAttachmentIssue(file: AttachmentFileInput): ChatAttachmentValidationIssue | null {
+  if (!isSupportedImage(file.type)) {
+    return { name: file.name, reason: "Unsupported image type (use PNG, JPEG, GIF or WebP)." };
+  }
+  if (file.size > CHAT_ATTACHMENT_MAX_IMAGE_BYTES) {
+    return {
+      name: file.name,
+      reason: `exceeds the ${CHAT_ATTACHMENT_MAX_IMAGE_BYTES / (1024 * 1024)} MiB limit for images.`,
+    };
+  }
+  return null;
+}
+
+/** Issue attached to a document file, or null when the file passes the document rules. */
+function documentAttachmentIssue(
+  file: AttachmentFileInput,
+  documentsAllowed: boolean,
+): ChatAttachmentValidationIssue | null {
+  if (!documentsAllowed) {
+    return {
+      name: file.name,
+      reason: "cannot be attached: this agent has no Files MCP server (documents unsupported).",
+    };
+  }
+  if (!isSupportedDocument(file)) {
+    return { name: file.name, reason: "Unsupported document type." };
+  }
+  if (file.size > CHAT_ATTACHMENT_MAX_DOCUMENT_BYTES) {
+    return {
+      name: file.name,
+      reason: `exceeds the ${CHAT_ATTACHMENT_MAX_DOCUMENT_BYTES / (1024 * 1024)} MiB limit for documents.`,
+    };
+  }
+  return null;
+}
+
 /**
  * Validate a composer draft against the client-mirrored limits. Documents are
  * only reportable when Files MCP is available for the target agent.
@@ -77,43 +114,13 @@ export function validateChatAttachments(
 
   let totalBytes = 0;
   for (const file of files) {
-    const kind = attachmentKindFromContentType(file.type);
     totalBytes += file.size;
-
-    if (kind === "image") {
-      if (!isSupportedImage(file.type)) {
-        issues.push({
-          name: file.name,
-          reason: "Unsupported image type (use PNG, JPEG, GIF or WebP).",
-        });
-        continue;
-      }
-      if (file.size > CHAT_ATTACHMENT_MAX_IMAGE_BYTES) {
-        issues.push({
-          name: file.name,
-          reason: `exceeds the ${CHAT_ATTACHMENT_MAX_IMAGE_BYTES / (1024 * 1024)} MiB limit for images.`,
-        });
-      }
-      continue;
-    }
-
-    if (!documentsAllowed) {
-      issues.push({
-        name: file.name,
-        reason: "cannot be attached: this agent has no Files MCP server (documents unsupported).",
-      });
-      continue;
-    }
-    if (!isSupportedDocument(file)) {
-      issues.push({ name: file.name, reason: "Unsupported document type." });
-      continue;
-    }
-    if (file.size > CHAT_ATTACHMENT_MAX_DOCUMENT_BYTES) {
-      issues.push({
-        name: file.name,
-        reason: `exceeds the ${CHAT_ATTACHMENT_MAX_DOCUMENT_BYTES / (1024 * 1024)} MiB limit for documents.`,
-      });
-    }
+    const kind = attachmentKindFromContentType(file.type);
+    const issue =
+      kind === "image"
+        ? imageAttachmentIssue(file)
+        : documentAttachmentIssue(file, documentsAllowed);
+    if (issue) issues.push(issue);
   }
 
   if (files.length > 0 && totalBytes > CHAT_ATTACHMENT_MAX_TOTAL_BYTES) {

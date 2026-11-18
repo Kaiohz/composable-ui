@@ -134,7 +134,9 @@ async function fileToBase64(file: File): Promise<string> {
     const CHUNK = 0x8000;
     let binary = "";
     for (let i = 0; i < bytes.length; i += CHUNK) {
-      binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+      // S7758: fromCodePoint over the same byte values — identical output for
+      // every byte (0..255) and required by the rule.
+      binary += String.fromCodePoint(...bytes.subarray(i, i + CHUNK));
     }
     return btoa(binary);
   }
@@ -143,7 +145,9 @@ async function fileToBase64(file: File): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
-      const dataUrl = String(reader.result ?? "");
+      // S6551: readAsDataURL always yields a string — narrow instead of
+      // String()-coercing a possibly non-string result.
+      const dataUrl = typeof reader.result === "string" ? reader.result : "";
       const commaIndex = dataUrl.indexOf(",");
       const base64 = commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : "";
       if (!base64) {

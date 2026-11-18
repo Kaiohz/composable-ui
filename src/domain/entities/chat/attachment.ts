@@ -104,6 +104,16 @@ export function fileExtension(filename: string): string | null {
   return filename.slice(idx + 1).toLowerCase();
 }
 
+/** Strips trailing ``/`` characters — linear scans only, no regex (S8786). */
+function stripTrailingSlashes(url: string): string {
+  let end = url.length;
+  // S7758: codePointAt over URL characters — "/" is an ASCII single-unit
+  // code point (47), so the scan condition is unchanged; the in-range ?? 0
+  // arm is unreachable (end is always a valid index here).
+  while (end > 0 && (url.codePointAt(end - 1) ?? 0) === 47 /* "/" */) end -= 1;
+  return url.slice(0, end);
+}
+
 /**
  * Document authorization policy (REQ-062 / REQ-009 client mirror): a document
  * may be attached only when the agent config declares an MCP HTTP server
@@ -118,7 +128,7 @@ export function documentsAllowedWithFilesMcp(
     if (server.transport !== McpTransportType.HTTP) return false;
     const url = server.url?.trim();
     if (!url) return false;
-    return url.replace(/\/+$/, "").endsWith("/files/mcp");
+    return stripTrailingSlashes(url).endsWith("/files/mcp");
   });
 }
 

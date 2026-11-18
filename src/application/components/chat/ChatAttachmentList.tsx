@@ -18,7 +18,7 @@ interface ChatAttachmentListProps {
   onRemove?: (attachmentId: string) => void;
 }
 
-function AttachmentImage({ attachment }: { attachment: ChatAttachmentDisplay }) {
+function AttachmentImage({ attachment }: Readonly<{ attachment: ChatAttachmentDisplay }>) {
   return (
     <div className="relative border border-border bg-surface-warm">
       <img
@@ -32,7 +32,7 @@ function AttachmentImage({ attachment }: { attachment: ChatAttachmentDisplay }) 
   );
 }
 
-function AttachmentFileChip({ attachment }: { attachment: ChatAttachmentDisplay }) {
+function AttachmentFileChip({ attachment }: Readonly<{ attachment: ChatAttachmentDisplay }>) {
   const ext = fileExtension(attachment.filename);
   const kindLabel = ext ? ext.toUpperCase() : attachment.content_type;
   return (
@@ -56,12 +56,12 @@ function RemoveButton({
   filename,
   onRemove,
   className,
-}: {
+}: Readonly<{
   attachmentId: string;
   filename: string;
   onRemove?: (attachmentId: string) => void;
   className?: string;
-}) {
+}>) {
   return (
     <button
       type="button"

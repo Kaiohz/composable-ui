@@ -35,8 +35,17 @@ type AttachmentImageLoader = Promise<string | null>;
 const attachmentImageCache = new Map<string, AttachmentImageLoader>();
 
 function loadStoredAttachmentContent(path: string): AttachmentImageLoader {
-  const cached = attachmentImageCache.get(path);
-  if (cached) return cached;
+  // S6544: a Promise must never be evaluated in a boolean conditional — gate
+  // on membership, then return the non-null loader already in the map.
+  if (!attachmentImageCache.has(path)) {
+    spawnAttachmentImageLoader(path);
+  }
+  const cached = attachmentImageCache.get(path) as AttachmentImageLoader;
+  return cached;
+}
+
+/** Creates and registers the loader for ``path`` (single call site, see above). */
+function spawnAttachmentImageLoader(path: string): void {
   // ``await``-based so a stubbed port returning a bare value (unit mocks) or
   // a rejecting fetch both degrade to ``null`` instead of leaking rejections.
   const loader: AttachmentImageLoader = (async () => {
@@ -50,7 +59,6 @@ function loadStoredAttachmentContent(path: string): AttachmentImageLoader {
     }
   })();
   attachmentImageCache.set(path, loader);
-  return loader;
 }
 
 export function useStoredAttachmentImages(
