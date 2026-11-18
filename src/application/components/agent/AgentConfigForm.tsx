@@ -214,6 +214,10 @@ export default function AgentConfigForm({
     resolver: (values, context, options) =>
       zodValidate(buildValidatedValues(values, sourceState), context, options),
     defaultValues: getDefaultValues(mode, initialData),
+    // Inactive prompt-source drafts must survive conditional unmounting
+    // (spec fix-agent-prompt-source-ui REQ-011): keep the react-hook-form
+    // draft-preservation contract explicit rather than relying on a silence.
+    shouldUnregister: false,
   });
 
   const subagentsArray = useFieldArray({ control, name: "subagents" });
@@ -253,11 +257,11 @@ export default function AgentConfigForm({
 
   function handlePromptModeChange(next: PromptSourceMode) {
     patchSourceState({ promptMode: next });
-    // Clear the newly inactive prompt fields from the form state so the UI
-    // never carries a stale value that trips the exclusivity rule on submit
-    // (spec §AGT-004.7). The serializer additionally clears per submit.
-    if (next !== "inline") setValue("system_prompt", undefined);
-    if (next !== "file") setValue("system_prompt_file", undefined);
+    // Inactive drafts are intentionally KEPT in the form state (spec
+    // fix-agent-prompt-source-ui REQ-011): conditionally unmounted fields do
+    // not drop their value (react-hook-form keeps values by default, i.e.
+    // shouldUnregister stays false), and buildValidatedValues still excludes
+    // every inactive source before validation and serialization (REQ-010).
   }
 
   function handleModelModeChange(next: ModelSourceMode) {
@@ -404,25 +408,28 @@ export default function AgentConfigForm({
               />
             </div>
 
-            <div className="space-y-2">
-              <Label className="block text-xs uppercase tracking-[0.1em]">Version Mode</Label>
-              <SegmentedToggle
-                value={sourceState.versionMode}
-                options={[
-                  { value: "latest" as const, label: "Latest" },
-                  { value: "pinned" as const, label: "Pinned" },
-                ]}
-                onChange={(v) => patchSourceState({ versionMode: v as PromptVersionMode })}
-                pattern="radio"
-                ariaLabel="Version Mode"
-              />
-              <p className="font-mono text-xs text-muted">
-                Latest follows new prompt versions; Pinned resolves one immutable version.
-              </p>
-            </div>
-
             {sourceState.promptMode === "registry" && (
               <div className="space-y-4">
+                {/* Version Mode belongs exclusively to the registry branch
+                (REQ-002/006/008): inline/file prompts carry no version
+                semantics, so the toggle unmounts with this branch. */}
+                <div className="space-y-2">
+                  <Label className="block text-xs uppercase tracking-[0.1em]">Version Mode</Label>
+                  <SegmentedToggle
+                    value={sourceState.versionMode}
+                    options={[
+                      { value: "latest" as const, label: "Latest" },
+                      { value: "pinned" as const, label: "Pinned" },
+                    ]}
+                    onChange={(v) => patchSourceState({ versionMode: v as PromptVersionMode })}
+                    pattern="radio"
+                    ariaLabel="Version Mode"
+                  />
+                  <p className="font-mono text-xs text-muted">
+                    Latest follows new prompt versions; Pinned resolves one immutable version.
+                  </p>
+                </div>
+
                 {/* Registry-health UI is scoped to the registry branch: an
                 inline/file prompt does not depend on the registry (I8). */}
                 {promptsError && (
@@ -490,27 +497,31 @@ export default function AgentConfigForm({
               </div>
             )}
 
-            <FormField id="system-prompt" label="System Prompt">
-              <Textarea
-                id="system-prompt"
-                {...register("system_prompt")}
-                placeholder="You are a helpful assistant…"
-                rows={6}
-                className="font-mono text-xs"
-              />
-            </FormField>
-            <FormField id="system-prompt-file" label="System Prompt File">
-              <Input
-                id="system-prompt-file"
-                {...register("system_prompt_file")}
-                placeholder="/prompts/system.txt (optional)…"
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </FormField>
+            {sourceState.promptMode === "inline" && (
+              <FormField id="system-prompt" label="System Prompt">
+                <Textarea
+                  id="system-prompt"
+                  {...register("system_prompt")}
+                  placeholder="You are a helpful assistant…"
+                  rows={6}
+                  className="font-mono text-xs"
+                />
+              </FormField>
+            )}
+            {sourceState.promptMode === "file" && (
+              <FormField id="system-prompt-file" label="System Prompt File">
+                <Input
+                  id="system-prompt-file"
+                  {...register("system_prompt_file")}
+                  placeholder="/prompts/system.txt (optional)…"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </FormField>
+            )}
             <p className="font-mono text-xs text-muted">
-              Only one prompt source is submitted: registry, inline or file. Switching the mode
-              clears the inactive fields in the saved YAML.
+              Only one prompt source is submitted: registry, inline or file. Drafts kept in the
+              other modes are restored when you switch back, but stay out of the saved YAML.
             </p>
           </AccordionContent>
         </AccordionItem>
