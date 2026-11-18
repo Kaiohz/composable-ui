@@ -10,6 +10,8 @@ export enum MessageStatus {
   AWAITING_HITL = "awaiting_hitl",
 }
 
+import type { ChatAttachmentMetadata } from "./attachment";
+
 export interface ToolCall {
   id: string;
   name: string;
@@ -26,4 +28,10 @@ export interface Message {
   structured_response: unknown;
   thinking: string | null;
   turn_id: string | null;
+  /**
+   * Attachment METADATA projection for human messages (REQ-020/022):
+   * id / filename / MIME / size / kind / source — never base64 content
+   * (REQ-021) and never an internal RustFS path (REQ-076).
+   */
+  attachments?: ChatAttachmentMetadata[] | null;
 }

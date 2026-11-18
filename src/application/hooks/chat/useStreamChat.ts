@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { chatApi } from "@/infrastructure/api/chat/chatApi";
 import { useChatStore } from "@/application/stores/useChatStore";
 import type { ChatRequest } from "@/domain/entities/chat/chatRequest";
+import type { ChatAttachmentDisplay } from "@/domain/entities/chat/attachment";
 
 function generateTurnId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -22,7 +23,7 @@ export function useStreamChat(threadId: string | null) {
   const abortRef = useRef<AbortController | null>(null);
 
   const stream = useCallback(
-    (request: ChatRequest) => {
+    (request: ChatRequest, pendingAttachments?: ChatAttachmentDisplay[] | null) => {
       if (!threadId) return;
 
       const { clearStream, setStreaming, setPendingUserMessage, initStreamingTurn } =
@@ -32,7 +33,10 @@ export function useStreamChat(threadId: string | null) {
       const turnId = generateTurnId();
       initStreamingTurn(turnId);
       setStreaming(true);
-      setPendingUserMessage(request.message ?? null);
+      // Empty text is allowed when attachments carry the turn (EDG-001/002):
+      // the pending bubble then relies on ``""`` to stay visible with its
+      // attachments until the history reloads.
+      setPendingUserMessage(request.message ?? "", pendingAttachments ?? null);
 
       abortRef.current = chatApi.streamMessage(
         threadId,
@@ -46,15 +50,31 @@ export function useStreamChat(threadId: string | null) {
               queryKey: ["history", threadId],
             });
           } finally {
-            const { setPendingUserMessage, setStreaming } = useChatStore.getState();
+            const { setPendingUserMessage, setStreaming, backupComposer } = useChatStore.getState();
+            // Turn completed successfully: the composer draft stays cleared
+            // and the pre-submit backup is dropped (REQ-071 only restores on
+            // errors), and the finished controller is released so a later
+            // ``cancel()`` cannot abort a completed stream.
             setPendingUserMessage(null);
             setStreaming(false);
+            backupComposer(null);
+            abortRef.current = null;
           }
         },
         (error) => {
           console.error("Stream error:", error);
-          useChatStore.getState().setStreaming(false);
-          useChatStore.getState().setError(error.message || "An error occurred while streaming.");
+          const store = useChatStore.getState();
+          store.setStreaming(false);
+          store.setError(error.message || "An error occurred while streaming.");
+          // I6: the optimistic pending bubble showed the same content the
+          // restored composer is about to show — drop it so the failure is
+          // presented once.
+          store.setPendingUserMessage(null, null);
+          // REQ-071: a backend error must not lose the current draft — the
+          // text and attachments taken by the failed submit are handed back
+          // to the composer for retry.
+          store.restoreComposerBackup();
+          abortRef.current = null;
         },
       );
     },
