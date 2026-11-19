@@ -10,7 +10,9 @@
  * single fixture source of truth.
  */
 
-export type ThreadSource = "chat" | "cron";
+import type { ThreadSource } from "@/domain/entities/chat/threadSource";
+
+export type { ThreadSource };
 
 export interface PromptMetadata {
   id: string;

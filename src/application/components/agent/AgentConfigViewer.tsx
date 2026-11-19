@@ -2,6 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Download, Pencil, Trash2 } from "lucide-react";
 import { useAgentConfig } from "@/application/hooks/agent/useAgentConfig";
+import { isBuiltinAgent } from "@/domain/entities/agent/agentConfigMetadata";
 import { useUpdateAgent } from "@/application/hooks/agent/useUpdateAgent";
 import { useDeleteAgent } from "@/application/hooks/agent/useDeleteAgent";
 import { usePrompts } from "@/application/hooks/prompt/usePrompts";
@@ -54,6 +55,14 @@ export default function AgentConfigViewer({
   } = useModels();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [mode, setMode] = useState<"view" | "edit">("view");
+  /**
+   * Read-only built-in assistant (spec feat-composable-mcp.md §REQ-046 and
+   * §REQ-034): its name is reserved, so the name alone is authoritative even
+   * before metadata loads. The definition stays readable while Edit/Delete
+   * are unavailable and Export is hidden — dynamic all-tool resolution is
+   * not reproduced by an exported YAML snapshot.
+   */
+  const isBuiltin = isBuiltinAgent(agentName);
 
   if (!open) return null;
 
@@ -132,7 +141,9 @@ export default function AgentConfigViewer({
             <DialogDescription className="text-sm text-muted">
               {mode === "edit"
                 ? "Edit the agent configuration below, then save your changes."
-                : "View the agent configuration. Use Edit to modify or Export to download YAML."}
+                : isBuiltin
+                  ? "View the built-in agent configuration. This definition is managed by Composable and is read-only."
+                  : "View the agent configuration. Use Edit to modify or Export to download YAML."}
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -155,7 +166,7 @@ export default function AgentConfigViewer({
           isPending={updateAgent.isPending}
         />
 
-        {mode === "view" && (
+        {mode === "view" && !isBuiltin && (
           <ViewerFooter
             configPresent={config != null}
             confirmDelete={confirmDelete}
@@ -164,6 +175,11 @@ export default function AgentConfigViewer({
             onEdit={() => setMode("edit")}
             onDelete={handleDelete}
           />
+        )}
+        {mode === "view" && isBuiltin && !config && !isLoading && !error && (
+          <p className="shrink-0 border-t border-border bg-surface px-6 py-4 font-mono text-xs text-muted sm:px-8">
+            Read-only agent — no mutable configuration is available.
+          </p>
         )}
       </DialogContent>
     </Dialog>

@@ -6,6 +6,11 @@ import { useAgents } from "@/application/hooks/agent/useAgents";
 import { useCreateThread } from "@/application/hooks/chat/useCreateThread";
 import { useChatStore } from "@/application/stores/useChatStore";
 import type { Thread } from "@/domain/entities/chat/thread";
+import {
+  isBuiltinAgent,
+  sortAgentsBuiltinFirst,
+} from "@/domain/entities/agent/agentConfigMetadata";
+import { badgeVariants } from "@/application/components/ui/badge";
 import { Button } from "@/application/components/ui/button";
 import ThreadSourceBadge from "@/application/components/shared/ThreadSourceBadge";
 import {
@@ -41,6 +46,9 @@ export default function ThreadSidebar({ activeThreadId }: Readonly<ThreadSidebar
   const setActiveThread = useChatStore((s) => s.setActiveThread);
   const navigate = useNavigate();
   const [showAgentDialog, setShowAgentDialog] = useState(false);
+  // Chooser ordering is a UI concern (spec §REQ-045): built-in assistant
+  // before custom agents, backend order preserved within each group.
+  const sortedAgents = useMemo(() => sortAgentsBuiltinFirst(agents ?? []), [agents]);
 
   useEffect(() => {
     if (!showAgentDialog) return;
@@ -161,7 +169,7 @@ export default function ThreadSidebar({ activeThreadId }: Readonly<ThreadSidebar
               {agents?.length === 0 && (
                 <p className="py-4 text-center font-mono text-xs text-muted">No agents available</p>
               )}
-              {agents?.map((agent) => (
+              {sortedAgents.map((agent) => (
                 <button
                   key={agent.name}
                   type="button"
@@ -169,7 +177,19 @@ export default function ThreadSidebar({ activeThreadId }: Readonly<ThreadSidebar
                   disabled={createThread.isPending}
                   className="w-full rounded-none border border-border bg-surface-warm p-3 text-left transition-[background-color,border-color,color] duration-fast ease-standard hover:border-accent hover:text-accent focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50"
                 >
-                  <span className="block text-sm font-semibold text-fg">{agent.name}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="block truncate text-sm font-semibold text-fg">
+                      {agent.name}
+                    </span>
+                    {isBuiltinAgent(agent.name, agent.is_builtin) && (
+                      <span
+                        data-od-id="agent-chooser-builtin-badge"
+                        className={cn(badgeVariants({ variant: "accent" }), "shrink-0")}
+                      >
+                        built-in
+                      </span>
+                    )}
+                  </span>
                   <span className="block font-mono text-xs text-muted">{agent.model}</span>
                 </button>
               ))}

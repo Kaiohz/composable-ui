@@ -1,5 +1,7 @@
 import { Bot, Settings, Trash2 } from "lucide-react";
 import type { AgentConfigMetadata } from "@/domain/entities/agent/agentConfigMetadata";
+import { isBuiltinAgent } from "@/domain/entities/agent/agentConfigMetadata";
+import { Badge } from "@/application/components/ui/badge";
 import { Button } from "@/application/components/ui/button";
 
 interface AgentCardProps {
@@ -23,9 +25,16 @@ export default function AgentCard({ agent, onConfigure, onDelete }: Readonly<Age
         </div>
       </div>
 
-      <h3 className="min-w-0 truncate font-display text-lg uppercase tracking-[0.06em] text-fg">
-        {agent.name}
-      </h3>
+      <div className="flex min-w-0 items-center gap-2">
+        <h3 className="min-w-0 truncate font-display text-lg uppercase tracking-[0.06em] text-fg">
+          {agent.name}
+        </h3>
+        {isBuiltinAgent(agent.name, agent.is_builtin) && (
+          <Badge variant="accent" data-od-id="agent-card-builtin-badge" className="shrink-0">
+            built-in
+          </Badge>
+        )}
+      </div>
       <p className="font-mono text-xs text-muted">{agent.model}</p>
 
       <div className="mt-auto flex items-center gap-2 border-t border-border-soft pt-2">
