@@ -13,6 +13,7 @@ const PromptsPage = lazy(() => import("@/application/pages/PromptsPage"));
 const ModelsPage = lazy(() => import("@/application/pages/ModelsPage"));
 const CronsPage = lazy(() => import("@/application/pages/CronsPage"));
 const TracesPage = lazy(() => import("@/application/pages/TracesPage"));
+const DocumentationPage = lazy(() => import("@/application/pages/documentation/DocumentationPage"));
 
 function PageFallback() {
   return (
@@ -39,6 +40,12 @@ function App() {
       <Route path="/memories" element={<MemoriesPage />} />
       <Route path="/mcp-registry" element={<McpRegistryPage />} />
       <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/documentation" element={<DocumentationPage />} />
+      <Route path="/documentation/:sectionSlug" element={<DocumentationPage />} />
+      {/* Catch-all: nested/unmatched /documentation/... paths (e.g. a stale
+          /documentation/agents/versions bookmark) must render the same safe
+          not-found fallback instead of a blank screen (BUG-001). */}
+      <Route path="/documentation/*" element={<DocumentationPage />} />
     </Routes>
   );
 }

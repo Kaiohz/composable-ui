@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import {
+  Book,
   BookOpen,
   Bot,
   Cpu,
@@ -43,6 +44,7 @@ const NAV_ITEMS: readonly NavItem[] = [
 ] as const;
 
 const SYSTEM_ITEMS: readonly NavItem[] = [
+  { to: "/documentation", label: "Documentation", icon: Book, odId: "nav-documentation" },
   { to: "/settings", label: "Settings", icon: Settings, odId: "nav-settings" },
 ] as const;
 

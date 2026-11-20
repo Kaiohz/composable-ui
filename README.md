@@ -22,6 +22,7 @@ React frontend for interacting with the [composable-agents](https://github.com/s
 - **RAG file browser** -- Browse MinIO folders and files with breadcrumb navigation and file metadata display. Create new folders (`CreateFolderDialog` triggered by the "New folder" button in the RAG browse tab) and delete files or folders via a trash-icon row action confirmed through a `ConfirmDeleteDialog`. Folder deletion is recursive and targets the MinIO prefix; file deletion targets a single object. Both calls hit the `POST /api/v1/files/folders` and `DELETE /api/v1/files` / `DELETE /api/v1/files/folders` endpoints exposed by `mcp-raganything`. Multi-file upload with drag-and-drop and folder upload support (see [File upload](#file-upload)).
 - **Tetris design system** -- Dark arcade visual language aligned with the Open Design `composable` maquette: magenta accent, Press Start 2P applied to all text (display, body, labels, buttons, nav, chat), block shadows, and `steps(2, end)` easing. Light theme toggle available from the Settings page.
 - **Settings** -- A dedicated `/settings` page (5 cards: Theme, Typography, LLM Provider, API Keys, Reset) backed by a persisted Zustand store for appearance and the composable-agents backend for per-user credentials, aligned to the Open Design maquette via `data-od-id` QA attributes. A "Sign out" button in the page header clears the oauth2-proxy cookie session.
+- **In-app user documentation** -- A dedicated `/documentation` area (`Documentation` item in the left menu's System group): twelve task-oriented chapters (Getting Started first), a section navigation with active-state marking and stable per-section URLs (`/documentation/:sectionSlug`, refresh/Back/Forward safe), a mobile "Sections" disclosure, and a safe not-found fallback for unknown URLs. Content is bundled with the frontend (no documentation service, not user-editable) and written as user-facing functional guidance; developer-facing docs stay in this README.
 
 ## Tech Stack
 
@@ -55,7 +56,7 @@ CSS custom properties live in `src/application/index.css` under `:root` (light) 
 
 ### Layout
 
-The app shell faithfully reproduces the maquette: a 220px left `Sidebar` (brand, nav, footer) + `MainHeader` (sticky, mobile menu button + route-derived title only — the header right side is now empty) + a scrollable `main` content area. The sidebar exposes a `System` section with a `Settings` nav link (`data-od-id="nav-settings"`). On mobile (`<768px`) the sidebar becomes off-canvas with a backdrop. The chat view adds a 260px `ThreadSidebar` inside a `chat-layout` grid (hidden below `lg:1024px`).
+The app shell faithfully reproduces the maquette: a 220px left `Sidebar` (brand, nav, footer) + `MainHeader` (sticky, mobile menu button + route-derived title only — the header right side is now empty) + a scrollable `main` content area. The sidebar exposes a `System` section with `Documentation` (`data-od-id="nav-documentation"` → the in-app user guide at `/documentation`) and `Settings` (`data-od-id="nav-settings"`) nav links. On mobile (`<768px`) the sidebar becomes off-canvas with a backdrop. The chat view adds a 260px `ThreadSidebar` inside a `chat-layout` grid (hidden below `lg:1024px`).
 
 ## Prerequisites
 
@@ -293,6 +294,9 @@ tests/
 | `/crons`           | CronsPage    | List, create, validate, enable/disable, Run now, and inspect run history       |
 | `/traces/:threadId?` | TracesPage | LLM usage dashboard (Dashboard / Runs / Threads sub-tabs) + read-only thread detail |
 | `/settings`        | SettingsPage | Theme, typography, LLM provider (backend-persisted), API keys (backend-persisted), reset, and Sign out |
+| `/documentation`   | DocumentationPage | In-app user guide — landing section (Getting Started) |
+| `/documentation/:sectionSlug` | DocumentationPage | Stable per-section URLs for the twelve guide chapters; unknown slugs render a not-found fallback |
+| `/documentation/*` | DocumentationPage | Catch-all for nested/unmatched documentation paths — same safe not-found fallback, never a blank page |
 
 ## LLM Usage Dashboard
 
@@ -319,7 +323,7 @@ The agent creation/edit form (in `CreateAgentDialog`) reflects the current backe
 
 ## RAG File Browser
 
-The `/rag` page provides a MinIO-backed file browser with three tabs: Browse, Query, and Classical. The browse tab uses breadcrumb navigation driven by `useFolders` and `useFiles`, and supports the following file/folder management actions alongside read and upload:
+The `/rag` page provides a MinIO-backed file browser with two tabs: **Browse** and **Query** (`RagTabBar`). The browse tab uses breadcrumb navigation driven by `useFolders` and `useFiles`, and supports the following file/folder management actions alongside read, upload and indexing:
 
 - **Create folder** -- The "New folder" button opens a `CreateFolderDialog` that collects a folder name, then calls `useCreateFolder` which posts `POST /api/v1/files/folders` to `mcp-raganything`. The folder is created as a 0-byte trailing-slash object.
 - **Delete file** -- Each `FileRow` exposes a trash-icon action that opens a `ConfirmDeleteDialog`. On confirm, `useDeleteFile` calls `DELETE /api/v1/files?object_name=...&working_dir=...` with the currently selected `working_dir` from the `WorkspaceSelector`, and invalidates the file list query. Both MinIO object and pgvector vectors are deleted (MinIO first, then pgvector).
@@ -338,9 +342,9 @@ The `UploadButton` and surrounding browse section now support multi-file upload 
 - **Partial failure handling** -- If some files upload successfully and others fail, a toast reports the split: "X uploaded, Y failed". Individual per-file errors are logged to the console.
 - **Accepted extensions** -- The accepted file extensions list is aligned with the backend allow-list: `.pdf`, `.doc`, `.docx`, `.txt`, `.md`, `.csv`, `.xlsx`, `.xls`, `.ppt`, `.pptx`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.bmp`, `.rtf`, `.odt`, `.ods`.
 
-### Indexing without a working_dir (Bug 1)
+### Indexing working directory resolution
 
-Attempting to index a file or folder from the `IndexActionMenu` when no `working_dir` is selected in the `WorkspaceSelector` previously triggered an empty error or a silent failure. The action now short-circuits and surfaces a toast: "Set a working_dir in the workspace selector first". No request is sent to the backend.
+Indexing a file or folder resolves the target working directory through `resolveWorkingDir(currentPrefix, workingDir)` (`src/application/lib/workingDir.ts`): the `WorkspaceSelector` value wins, then the folder currently being browsed, then the `default-composable` workspace. The index request therefore always fires — there is no blocking guard anymore (an earlier iteration surfaced a `Set a working_dir in the workspace selector first` toast; that guard and its string were removed). Querying behaves differently: `QueryPanel` short-circuits silently until both a `working_dir` and a non-empty query are set, so `Search` simply stays inactive with no message. The in-app user guide (`DOC-10`) documents this split accurately.
 
 ### FileContentPanel null-safety (Bug 2)
 
