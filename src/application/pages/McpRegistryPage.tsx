@@ -84,8 +84,8 @@ export default function McpRegistryPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <p className="max-w-md font-body text-sm text-muted">
             Register and manage remote MCP servers. Each entry stores the endpoint URL and secrets
-            (encrypted) so agents can reference them by name. Servers hosted by raganything are
-            listed below and can be registered with one click (no key needed).
+            (encrypted) so agents can reference them by name. Servers hosted by composable-agents or
+            raganything are listed below and can be registered with one click (no key needed).
           </p>
           <div className="flex items-center gap-3">
             <Badge variant="default" data-od-id="mcp-server-count">
@@ -106,7 +106,7 @@ export default function McpRegistryPage() {
         {builtIns.length > 0 && (
           <div className="space-y-2" data-od-id="mcp-built-in-section">
             <h3 className="font-mono text-xs uppercase tracking-[0.1em] text-muted">
-              Built-in (raganything)
+              Built-in MCP servers
             </h3>
             {builtIns.map((server) => (
               <div

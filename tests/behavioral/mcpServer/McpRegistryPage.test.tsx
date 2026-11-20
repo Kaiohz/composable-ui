@@ -28,7 +28,7 @@ afterEach(() => {
 });
 
 describe("McpRegistryPage built-in MCP servers", () => {
-  it("displays Memories and Web Search once like the RAG built-ins without changing other MCP servers", async () => {
+  it("displays the built-in Composable Agents and RagAnything MCP servers without changing other MCP servers", async () => {
     // Arrange — the deployed config predates the two newest built-in servers.
     vi.stubGlobal(
       "fetch",
@@ -75,14 +75,16 @@ describe("McpRegistryPage built-in MCP servers", () => {
     const builtIns = within(builtInSection as HTMLElement);
 
     // Assert — all built-ins share the existing card actions and badges.
+    expect(builtIns.getByText("Composable Agents")).toBeInTheDocument();
+    expect(builtIns.getByText("http://api.test.com/mcp")).toBeInTheDocument();
     expect(builtIns.getByText("raganything-classical")).toBeInTheDocument();
     expect(builtIns.getByText("Memories")).toBeInTheDocument();
     expect(builtIns.getByText("https://ragany.test.com/memories/mcp")).toBeInTheDocument();
     expect(builtIns.getByText("Web Search")).toBeInTheDocument();
     expect(builtIns.getByText("https://ragany.test.com/web/mcp")).toBeInTheDocument();
-    expect(builtIns.getAllByText("built-in")).toHaveLength(4);
-    expect(builtIns.getAllByText("http")).toHaveLength(4);
-    expect(builtIns.getAllByRole("button", { name: "Register" })).toHaveLength(4);
+    expect(builtIns.getAllByText("built-in")).toHaveLength(5);
+    expect(builtIns.getAllByText("http")).toHaveLength(5);
+    expect(builtIns.getAllByRole("button", { name: "Register" })).toHaveLength(5);
 
     // The registered registry remains unchanged and separate from built-ins.
     expect(screen.getByText("weather")).toBeInTheDocument();
