@@ -40,7 +40,12 @@ describe("FileConfigRepository", () => {
       const config = await repo.getConfig();
 
       expect(fetch).toHaveBeenCalledWith("/config.json");
-      expect(config).toEqual(mockConfig);
+      expect(config).toEqual({
+        ...mockConfig,
+        builtInMcpServers: [
+          { name: "Composable Agents", url: "http://api.test.com/mcp", transport: "http" },
+        ],
+      });
     });
 
     it("should cache config after first load", async () => {
@@ -124,7 +129,12 @@ describe("FileConfigRepository", () => {
       } as Response);
 
       const config = await repo.getConfig();
-      expect(config).toEqual(mockConfig);
+      expect(config).toEqual({
+        ...mockConfig,
+        builtInMcpServers: [
+          { name: "Composable Agents", url: "http://api.test.com/mcp", transport: "http" },
+        ],
+      });
     });
 
     it("should handle concurrent getConfig calls", async () => {

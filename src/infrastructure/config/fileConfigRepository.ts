@@ -29,9 +29,9 @@ export class FileConfigRepository implements IConfigRepository {
 
       const rawConfig = await response.json();
       const parsed = AppConfigSchema.parse(rawConfig);
-      // Complete the built-in MCP list (Memories, Web Search mounts hosted by
-      // raganything) so the registry page shows them like config-declared RAG
-      // built-ins, without requiring a config.json redeploy.
+      // Complete the built-in MCP list (Composable Agents platform and
+      // raganything RAG/Web/Memories mounts) so the registry page shows them
+      // like config-declared built-ins, without requiring a config.json redeploy.
       const config = completeBuiltInMcpServers(parsed);
       this.config = config;
       return config;
