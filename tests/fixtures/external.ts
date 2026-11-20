@@ -19,6 +19,7 @@ export function createAgentConfigMetadata(
     minio_path: "composable-agents/test-agent.yaml",
     created_at: "2026-04-06T10:00:00Z",
     updated_at: "2026-04-06T10:00:00Z",
+    is_builtin: false,
     ...overrides,
   };
 }
@@ -30,6 +31,7 @@ export function createThread(overrides: Partial<Thread> = {}): Thread {
     messages: [],
     created_at: "2026-04-06T10:00:00Z",
     updated_at: "2026-04-06T10:00:00Z",
+    source: null,
     ...overrides,
   };
 }

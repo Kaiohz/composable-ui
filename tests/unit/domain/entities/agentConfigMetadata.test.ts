@@ -2,13 +2,18 @@ import { describe, it, expect } from "vitest";
 import { createAgentConfigMetadata } from "../../../fixtures/external";
 
 describe("AgentConfigMetadata", () => {
-  it("does NOT include is_builtin (field removed by migration 003)", () => {
-    // TS types are erased at runtime, so we assert via the fixture: the
-    // property must not be present on the produced object.
+  it("carries the additive is_builtin marker (computed overlay, spec REQ-033)", () => {
+    // `is_builtin` is reintroduced as an additive METADATA contract computed
+    // by the built-in overlay (feat-composable-mcp.md §REQ-033): `true` only
+    // for the virtual assistant, `false` for the default custom-agent
+    // fixture. It is never persisted YAML and no database column returns.
     const metadata = createAgentConfigMetadata();
 
-    expect("is_builtin" in metadata).toBe(false);
-    expect(metadata).not.toHaveProperty("is_builtin");
+    expect(metadata).toHaveProperty("is_builtin");
+    expect(metadata.is_builtin).toBe(false);
+    expect(
+      createAgentConfigMetadata({ name: "composable-ai-assistant", is_builtin: true }).is_builtin,
+    ).toBe(true);
   });
 
   it("includes the expected fields", () => {

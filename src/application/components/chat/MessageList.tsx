@@ -7,6 +7,8 @@ import { useChatStore } from "@/application/stores/useChatStore";
 import { MessageRole, type Message } from "@/domain/entities/chat/message";
 import type { TraceEvent, Turn } from "@/domain/entities/chat/traceEvent";
 import { TraceEventType } from "@/domain/entities/chat/traceEvent";
+import { isLlmNotConfiguredError } from "@/domain/entities/settings/llmSettingsError";
+import { Link } from "react-router-dom";
 import ThreadSourceBadge from "@/application/components/shared/ThreadSourceBadge";
 import ChatMessage from "@/application/components/chat/ChatMessage";
 import ThinkingBlock from "@/application/components/chat/ThinkingBlock";
@@ -86,6 +88,47 @@ function messagesFromTurns(turns: Turn[]): Array<{ message: Message; events: Tra
     }
   }
   return out;
+}
+
+/**
+ * Chat error surface (module-level, hoisted — no component redefinition per
+ * render). Renders the raw error verbatim; when the failure is the
+ * onboarding LLM-not-configured error (spec feat-composable-mcp.md
+ * §REQ-041/§REQ-052), it additionally offers an actionable navigation to
+ * `/settings` without exposing any credential material.
+ */
+function ChatErrorPanel({ agentName, error }: Readonly<{ agentName: string; error: string }>) {
+  const missingLlm = isLlmNotConfiguredError(error);
+  return (
+    <div className="animate-chat-msg-enter flex gap-3">
+      <div
+        className="flex h-9 w-9 shrink-0 items-center justify-center border border-danger bg-danger/10 font-display text-xs uppercase text-danger"
+        aria-hidden="true"
+      >
+        !
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-mono text-sm text-fg">{agentName}</span>
+        </div>
+        <div className="border border-danger bg-bg p-3 text-sm">
+          <p className="font-mono text-xs uppercase tracking-[0.1em] text-danger">
+            Something went wrong
+          </p>
+          <p className="mt-1 font-mono text-xs text-danger/80">{error}</p>
+          {missingLlm && (
+            <Link
+              to="/settings"
+              data-od-id="chat-error-llm-settings"
+              className="mt-2 inline-flex font-mono text-xs uppercase tracking-[0.1em] text-accent underline transition-colors duration-fast ease-standard hover:text-accent-hover focus-visible:outline-none focus-visible:shadow-focus"
+            >
+              Configure LLM Settings
+            </Link>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function MessageList({
@@ -283,27 +326,7 @@ export default function MessageList({
           </div>
         )}
 
-        {error && !isStreaming && (
-          <div className="animate-chat-msg-enter flex gap-3">
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center border border-danger bg-danger/10 font-display text-xs uppercase text-danger"
-              aria-hidden="true"
-            >
-              !
-            </div>
-            <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-sm text-fg">{agentName}</span>
-              </div>
-              <div className="border border-danger bg-bg p-3 text-sm">
-                <p className="font-mono text-xs uppercase tracking-[0.1em] text-danger">
-                  Something went wrong
-                </p>
-                <p className="mt-1 font-mono text-xs text-danger/80">{error}</p>
-              </div>
-            </div>
-          </div>
-        )}
+        {error && !isStreaming && <ChatErrorPanel agentName={agentName} error={error} />}
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 import { useAgents } from "@/application/hooks/agent/useAgents";
+import { sortAgentsBuiltinFirst } from "@/domain/entities/agent/agentConfigMetadata";
 import AgentCard from "@/application/components/agent/AgentCard";
 
 interface AgentGridProps {
@@ -9,6 +10,8 @@ interface AgentGridProps {
 
 export default function AgentGrid({ onCreateNew, onConfigure }: Readonly<AgentGridProps>) {
   const { data: agents, isLoading, error } = useAgents();
+  // Built-in assistant first (spec §REQ-045); stable within each group.
+  const sortedAgents = sortAgentsBuiltinFirst(agents ?? []);
 
   if (isLoading) {
     return (
@@ -32,7 +35,7 @@ export default function AgentGrid({ onCreateNew, onConfigure }: Readonly<AgentGr
 
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3" data-od-id="agent-grid">
-      {agents?.map((agent) => (
+      {sortedAgents.map((agent) => (
         <div key={agent.name} className="min-w-0">
           <AgentCard agent={agent} onConfigure={onConfigure} />
         </div>
