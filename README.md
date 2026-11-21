@@ -5,6 +5,8 @@ React frontend for interacting with the [composable-agents](https://github.com/s
 ## Features
 
 - **Agent management** — Create, view, configure, and delete agents via YAML file upload
+- **Unified resource-card system** — Agents, Prompts, Models, Crons, Skills, Memories, and MCP Registry share one `ResourceCard` composition: the Agent-reference surface treatment, icon block, title/badge slot, equal-height grids, separated action footer, responsive 1/2/3-column grid, and right-aligned icon-only delete with target-specific accessible names. Crons use the same resource cards (not full-width rows), and long badge content truncates safely without collapsing the title.
+- **Viewport-safe dialogs** — Shared Dialog/AlertDialog primitives bound content to the available dynamic viewport, scroll internally with overscroll containment, keep a 1rem screen gutter, and expose comfortable responsive padding. Structured agent/skill/memory/MCP dialogs use fixed headers/footers with explicitly bounded, scrollable bodies; the Agent configuration view and edit modes both expose every field/action without clipping.
 - **Built-in assistant first** — `composable-ai-assistant` is overlaid into every user's catalog with a `built-in` badge. Each user can personalize its editable fields with Edit and restore the platform default with Reset to Default; deletion stays unavailable and the assistant does not bypass the manual New Conversation chooser.
 - **MCP thread source badge** — Thread sidebar, chat header/history, trace list, and trace detail render `CHAT`, `CRON`, or the new `MCP` source value. One-shot MCP executions produce `MCP` threads.
 - **LLM onboarding surface** — A missing per-user LLM configuration is surfaced as a clear, actionable error with a direct link to `/settings`.
@@ -47,6 +49,7 @@ The UI implements the **Tetris** design system derived from the [Open Design](ht
 - **Typography**: `Press Start 2P` is now applied to all text — display, body, labels, buttons, nav, and chat — bringing the UI to full parity with the Open Design maquette. Mono uppercase with `0.1em` tracking for badges/tags.
 - **Shape**: sharp corners (`0px` radius) everywhere; icon buttons are now `rounded-none` (previously `rounded-full`) to match the maquette. The only round elements are the Switch toggle and the sidebar avatar (`--radius-pill`).
 - **Elevation**: hard block shadows (`4px 4px 0` black for buttons, `0 18px 0` for raised panels) — never soft diffuse shadows. Primary buttons collapse their shadow on `:active` via `translate(4px, 4px)`.
+- **Resource cards & dialogs**: resource cards and modal shells use the same shared primitives above; one-off layout class strings do not re-declare the design-system treatment.
 - **Motion**: `steps(2, end)` easing for an arcade hard-cut feel. Durations `80ms` (fast) / `140ms` (base). All animations disabled under `prefers-reduced-motion: reduce`.
 - **Icons**: [lucide-react](https://lucide.dev) throughout (tree-shakeable, consistent with shadcn/ui).
 
