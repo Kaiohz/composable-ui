@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderWithProviders } from "../../../utils/render";
@@ -6,6 +6,7 @@ import AgentConfigForm from "@/application/components/agent/AgentConfigForm";
 import type { AgentConfig } from "@/domain/entities/agent/agentConfig";
 import { BackendType } from "@/domain/entities/agent/agentConfig";
 import type { AgentConfigMetadata } from "@/domain/entities/agent/agentConfigMetadata";
+import { BUILTIN_FORCED_HITL_TOOLS } from "@/domain/entities/agent/agentConfigMetadata";
 import { McpTransportType } from "@/domain/entities/agent/mcpServerConfig";
 import type { RegisteredMcpServer } from "@/domain/entities/mcpServer/registeredMcpServer";
 
@@ -549,6 +550,122 @@ describe("AgentConfigForm", () => {
         expect(screen.queryByRole("button", { name: /legacy-local/i })).not.toBeInTheDocument();
       });
       expect(revealMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("built-in mode", () => {
+    const builtinConfig: AgentConfig = {
+      name: "composable-ai-assistant",
+      model: "claude-sonnet-4-5-20250929",
+      system_prompt: "Built-in prompt",
+      tools: [],
+      backend: { type: BackendType.STORE, checkpoint_backend: "memory" },
+      hitl: {
+        rules: {
+          ...Object.fromEntries(BUILTIN_FORCED_HITL_TOOLS.map((tool) => [tool, true])),
+          custom_object: { before: false, after: false },
+        },
+      },
+      memory: [],
+      skills: [],
+      subagents: [],
+      mcp_servers: [],
+      debug: false,
+      is_builtin: true,
+      is_customized: true,
+    };
+
+    it("hides server-managed sections and locks forced HITL rules", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(
+        <AgentConfigForm
+          mode="edit"
+          initialData={builtinConfig}
+          onSubmit={mockSubmit}
+          onCancel={mockCancel}
+          isBuiltin
+        />,
+      );
+
+      expect(screen.queryByRole("button", { name: /mcp servers/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /subagents/i })).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: /^hitl$/i }));
+      for (const tool of BUILTIN_FORCED_HITL_TOOLS) {
+        expect(screen.queryByRole("button", { name: `Remove ${tool}` })).not.toBeInTheDocument();
+      }
+      expect(screen.getByText("custom_object")).toBeInTheDocument();
+    });
+
+    it("adds and removes an editable custom HITL rule", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(
+        <AgentConfigForm
+          mode="edit"
+          initialData={builtinConfig}
+          onSubmit={mockSubmit}
+          onCancel={mockCancel}
+          isBuiltin
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: /^hitl$/i }));
+      await user.type(screen.getByPlaceholderText(/rule name/i), "custom_tool");
+      await user.type(screen.getByPlaceholderText(/rule name/i), "{Enter}");
+
+      expect(screen.getByText("custom_tool")).toBeInTheDocument();
+      const row = screen.getByText("custom_tool").closest("div");
+      expect(row).not.toBeNull();
+      await user.click(within(row as HTMLElement).getByRole("switch"));
+      await user.click(screen.getByRole("button", { name: "Remove custom_tool" }));
+      expect(screen.queryByText("custom_tool")).not.toBeInTheDocument();
+    });
+
+    it("shows the empty HITL state when a built-in config has no rules yet", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(
+        <AgentConfigForm
+          mode="edit"
+          initialData={{ ...builtinConfig, hitl: { rules: {} } }}
+          onSubmit={mockSubmit}
+          onCancel={mockCancel}
+          isBuiltin
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: /^hitl$/i }));
+      expect(screen.getByText(/no hitl rules configured/i)).toBeInTheDocument();
+    });
+
+    it("updates before and after switches on an object rule", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(
+        <AgentConfigForm
+          mode="edit"
+          initialData={builtinConfig}
+          onSubmit={mockSubmit}
+          onCancel={mockCancel}
+          isBuiltin
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: /^hitl$/i }));
+      const row = screen.getByText("custom_object").closest("div");
+      expect(row).not.toBeNull();
+      const switches = within(row as HTMLElement).getAllByRole("switch");
+      await user.click(switches[0]);
+      await user.click(switches[1]);
+      await user.click(screen.getByRole("button", { name: /^update$/i }));
+
+      expect(mockSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          hitl: expect.objectContaining({
+            rules: expect.objectContaining({
+              custom_object: { before: true, after: true },
+            }),
+          }),
+        }),
+      );
     });
   });
 });

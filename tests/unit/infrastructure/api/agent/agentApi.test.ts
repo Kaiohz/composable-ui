@@ -94,4 +94,16 @@ describe("agentApi", () => {
       expect(apiClient.delete).toHaveBeenCalledWith("/api/v1/agents/test-agent");
     });
   });
+
+  describe("resetBuiltinCustomization", () => {
+    it("sends DELETE to the built-in customization endpoint", async () => {
+      vi.mocked(apiClient.delete).mockResolvedValue({});
+
+      await agentApi.resetBuiltinCustomization("composable-ai-assistant");
+
+      expect(apiClient.delete).toHaveBeenCalledWith(
+        "/api/v1/agents/composable-ai-assistant/customization",
+      );
+    });
+  });
 });

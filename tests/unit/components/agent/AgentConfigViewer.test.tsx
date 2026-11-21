@@ -5,17 +5,21 @@ import { renderWithProviders } from "../../../utils/render";
 import AgentConfigViewer from "@/application/components/agent/AgentConfigViewer";
 import type { AgentConfig } from "@/domain/entities/agent/agentConfig";
 import { BackendType } from "@/domain/entities/agent/agentConfig";
+import { McpTransportType } from "@/domain/entities/agent/mcpServerConfig";
 
-const { mockAgentConfigData, mockDeleteMutate, mockUpdateMutate } = vi.hoisted(() => {
-  return {
-    mockAgentConfigData: {
-      data: undefined as AgentConfig | undefined,
-      isLoading: false,
-    },
-    mockDeleteMutate: vi.fn(),
-    mockUpdateMutate: vi.fn(),
-  };
-});
+const { mockAgentConfigData, mockDeleteMutate, mockUpdateMutate, mockResetMutate } = vi.hoisted(
+  () => {
+    return {
+      mockAgentConfigData: {
+        data: undefined as AgentConfig | undefined,
+        isLoading: false,
+      },
+      mockDeleteMutate: vi.fn(),
+      mockUpdateMutate: vi.fn(),
+      mockResetMutate: vi.fn(),
+    };
+  },
+);
 
 vi.mock("@/application/hooks/agent/useAgentConfig", () => ({
   useAgentConfig: () => mockAgentConfigData,
@@ -31,6 +35,13 @@ vi.mock("@/application/hooks/agent/useDeleteAgent", () => ({
 vi.mock("@/application/hooks/agent/useUpdateAgent", () => ({
   useUpdateAgent: () => ({
     mutate: mockUpdateMutate,
+    isPending: false,
+  }),
+}));
+
+vi.mock("@/application/hooks/agent/useResetBuiltinCustomization", () => ({
+  useResetBuiltinCustomization: () => ({
+    mutate: mockResetMutate,
     isPending: false,
   }),
 }));
@@ -100,6 +111,7 @@ describe("AgentConfigViewer", () => {
     mockAgentConfigData.isLoading = false;
     mockDeleteMutate.mockClear();
     mockUpdateMutate.mockClear();
+    mockResetMutate.mockClear();
   });
 
   it("returns null when open is false", () => {
@@ -251,7 +263,7 @@ describe("AgentConfigViewer", () => {
       mcp_servers: [
         {
           name: "filesystem-server",
-          transport: "stdio" as any,
+          transport: McpTransportType.STDIO,
           args: [],
           headers: {},
           env: {},
@@ -469,5 +481,121 @@ describe("AgentConfigViewer", () => {
 
     // Assert — a ref badge "ref: researcher" must be rendered on the subagent.
     expect(screen.getByText(/ref:\s*researcher/i)).toBeInTheDocument();
+  });
+
+  it("shows an enabled Edit, a customized indicator and Reset for a customized built-in", () => {
+    mockAgentConfigData.data = {
+      ...fullConfig,
+      name: "composable-ai-assistant",
+      is_customized: true,
+    } as AgentConfig;
+
+    renderWithProviders(
+      <AgentConfigViewer agentName="composable-ai-assistant" open={true} onOpenChange={vi.fn()} />,
+    );
+
+    expect(screen.getByRole("button", { name: /^edit(\s+edit)?$/i })).toBeEnabled();
+    expect(screen.getByText(/^customized$/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /reset to default/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^delete(\s+delete)?$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /export yaml/i })).not.toBeInTheDocument();
+  });
+
+  it("does not show the customized indicator or Reset for the default built-in", () => {
+    mockAgentConfigData.data = {
+      ...fullConfig,
+      name: "composable-ai-assistant",
+      is_customized: false,
+    } as AgentConfig;
+
+    renderWithProviders(
+      <AgentConfigViewer agentName="composable-ai-assistant" open={true} onOpenChange={vi.fn()} />,
+    );
+
+    expect(screen.queryByText(/^customized$/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /reset to default/i })).not.toBeInTheDocument();
+  });
+
+  it("resets a customized built-in after confirmation", async () => {
+    const user = userEvent.setup();
+    mockAgentConfigData.data = {
+      ...fullConfig,
+      name: "composable-ai-assistant",
+      is_customized: true,
+    } as AgentConfig;
+
+    renderWithProviders(
+      <AgentConfigViewer agentName="composable-ai-assistant" open={true} onOpenChange={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /reset to default/i }));
+    await user.click(screen.getByRole("button", { name: /confirm reset/i }));
+
+    expect(mockResetMutate).toHaveBeenCalledWith(
+      "composable-ai-assistant",
+      expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
+    );
+  });
+
+  it("locks built-in-only form sections and forced HITL rules", async () => {
+    const user = userEvent.setup();
+    mockAgentConfigData.data = {
+      ...fullConfig,
+      name: "composable-ai-assistant",
+      tools: [],
+      hitl: {
+        rules: {
+          composable_agents_delete: true,
+          composable_mcp_servers_delete: true,
+          composable_skills_delete: true,
+          composable_memories_delete: true,
+          composable_prompts_delete: true,
+          composable_models_delete: true,
+          composable_crons_delete: true,
+          composable_threads_delete: true,
+          my_custom_tool: true,
+        },
+      },
+    } as AgentConfig;
+
+    renderWithProviders(
+      <AgentConfigViewer agentName="composable-ai-assistant" open={true} onOpenChange={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /^edit(\s+edit)?$/i }));
+    expect(screen.getByLabelText(/^agent name$/i)).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /mcp servers/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /subagents/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^hitl$/i }));
+    expect(screen.getByText("my_custom_tool")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Remove composable_agents_delete" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove my_custom_tool" })).toBeInTheDocument();
+  });
+
+  it("saves a built-in customization through the existing update mutation", async () => {
+    const user = userEvent.setup();
+    mockAgentConfigData.data = {
+      ...fullConfig,
+      name: "composable-ai-assistant",
+      tools: [],
+    } as AgentConfig;
+
+    renderWithProviders(
+      <AgentConfigViewer agentName="composable-ai-assistant" open={true} onOpenChange={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /^edit(\s+edit)?$/i }));
+    const description = screen.getByLabelText(/^description$/i);
+    await user.clear(description);
+    await user.type(description, "My personal assistant");
+    await user.click(screen.getByRole("button", { name: /^update$/i }));
+
+    expect(mockUpdateMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "composable-ai-assistant" }),
+      expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
+    );
   });
 });

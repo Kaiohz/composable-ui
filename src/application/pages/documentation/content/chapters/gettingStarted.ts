@@ -182,7 +182,7 @@ const gettingStarted: DocChapter = {
       ),
       lbl("built-in"),
       txt(
-        " badge. You can look at its configuration but you cannot change or delete it — it is read-only by design. Even with the built-in assistant available, starting a conversation always requires choosing an agent: there is no default agent that answers without this step.",
+        " badge. You can look at its configuration and personalize the editable fields with Edit; Reset to Default restores the supplied definition. It cannot be deleted, its name stays reserved, and its dynamic tools plus destructive-delete approval rules remain managed by the platform. Even with the built-in assistant available, starting a conversation always requires choosing an agent: there is no default agent that answers without this step.",
       ),
     ),
 

@@ -147,7 +147,7 @@ describe("AgentsPage — built-in Composable AI Assistant discovery", () => {
   });
 });
 
-describe("AgentsPage — built-in assistant selection opens the read-only viewer", () => {
+describe("AgentsPage — built-in assistant selection opens the editable viewer", () => {
   beforeEach(() => {
     mockAgentsData.data = [customAgent(), builtinAgent()];
     mockAgentConfigData.data = createAgentConfig({
@@ -171,7 +171,7 @@ describe("AgentsPage — built-in assistant selection opens the read-only viewer
     expect(within(dialog).getByText(/Composable AI Assistant/i)).toBeInTheDocument();
   });
 
-  it("hides or disables Edit for the built-in assistant", async () => {
+  it("the built-in assistant viewer shows an enabled Edit button and no destructive actions", async () => {
     const user = userEvent.setup();
     renderWithProviders(<AgentsPage />, { initialEntries: ["/agents"] });
 
@@ -180,23 +180,11 @@ describe("AgentsPage — built-in assistant selection opens the read-only viewer
     );
     await screen.findByRole("dialog");
 
-    // The responsive footer renders the label twice (mobile/span variants),
-    // so the accessible name may be a doubled "Edit Edit".
-    const editButton = screen.queryByRole("button", { name: /^edit(\s+edit)?$/i });
-    expect(editButton === null || editButton.hasAttribute("disabled")).toBe(true);
-  });
-
-  it("hides or disables Delete for the built-in assistant", async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<AgentsPage />, { initialEntries: ["/agents"] });
-
-    await user.click(
-      within(agentCard("composable-ai-assistant")).getByRole("button", { name: /configure/i }),
-    );
-    await screen.findByRole("dialog");
-
-    const deleteButton = screen.queryByRole("button", { name: /^delete$/i });
-    expect(deleteButton === null || deleteButton.hasAttribute("disabled")).toBe(true);
+    const editButton = screen.getByRole("button", { name: /^edit(\s+edit)?$/i });
+    expect(editButton).toBeInTheDocument();
+    expect(editButton.hasAttribute("disabled")).toBe(false);
+    expect(screen.queryByRole("button", { name: /^delete(\s+delete)?$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /export yaml/i })).not.toBeInTheDocument();
   });
 
   it("custom agents keep a working Edit and Delete in the viewer", async () => {

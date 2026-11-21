@@ -7,4 +7,5 @@ export interface IAgentPort {
   createAgent(name: string, yamlFile: File): Promise<AgentConfig>;
   updateAgent(name: string, yamlFile: File): Promise<AgentConfig>;
   deleteAgent(name: string): Promise<void>;
+  resetBuiltinCustomization(name: string): Promise<void>;
 }

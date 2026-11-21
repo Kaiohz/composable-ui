@@ -69,4 +69,8 @@ export interface AgentConfig {
   mcp_servers: McpServerConfig[];
   response_format?: Record<string, unknown>;
   debug: boolean;
+  /** Backend overlay marker: `true` for the virtual built-in assistant. */
+  is_builtin?: boolean;
+  /** `true` when the built-in assistant resolves to the user's override. */
+  is_customized?: boolean;
 }
