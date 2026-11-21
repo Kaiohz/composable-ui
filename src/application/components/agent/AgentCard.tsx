@@ -1,8 +1,13 @@
-import { Bot, Settings, Trash2 } from "lucide-react";
+import { Bot, Settings } from "lucide-react";
 import type { AgentConfigMetadata } from "@/domain/entities/agent/agentConfigMetadata";
 import { isBuiltinAgent } from "@/domain/entities/agent/agentConfigMetadata";
 import { Badge } from "@/application/components/ui/badge";
 import { Button } from "@/application/components/ui/button";
+import {
+  ResourceCard,
+  ResourceCardDeleteButton,
+  ResourceCardFooter,
+} from "@/application/components/ui/resource-card";
 
 interface AgentCardProps {
   readonly agent: AgentConfigMetadata;
@@ -10,34 +15,28 @@ interface AgentCardProps {
   readonly onDelete?: (name: string) => void;
 }
 
+/**
+ * Agent card: the visual reference implemented THROUGH the shared resource
+ * card pattern (spec unify-cards-modals CARD-001..CARD-008) so the treatment
+ * stays defined once and every other resource surface inherits it.
+ */
 export default function AgentCard({ agent, onConfigure, onDelete }: Readonly<AgentCardProps>) {
   return (
-    <div
-      data-od-id={`agent-card-${agent.name}`}
-      className="group relative flex flex-col gap-3 border border-border bg-surface p-4 block-shadow-raised transition-[border-color,box-shadow,transform] duration-base ease-standard hover:-translate-y-0.5 hover:border-accent"
-    >
-      <div className="flex items-center justify-between">
-        <div
-          className="flex h-12 w-12 items-center justify-center border border-border bg-surface-warm font-display text-lg text-accent"
-          aria-hidden="true"
-        >
-          <Bot className="h-6 w-6" />
-        </div>
-      </div>
-
-      <div className="flex min-w-0 items-center gap-2">
-        <h3 className="min-w-0 truncate font-display text-lg uppercase tracking-[0.06em] text-fg">
-          {agent.name}
-        </h3>
-        {isBuiltinAgent(agent.name, agent.is_builtin) && (
+    <ResourceCard
+      odId={`agent-card-${agent.name}`}
+      icon={Bot}
+      title={agent.name}
+      badges={
+        isBuiltinAgent(agent.name, agent.is_builtin) && (
           <Badge variant="accent" data-od-id="agent-card-builtin-badge" className="shrink-0">
             built-in
           </Badge>
-        )}
-      </div>
+        )
+      }
+    >
       <p className="font-mono text-xs text-muted">{agent.model}</p>
 
-      <div className="mt-auto flex items-center gap-2 border-t border-border-soft pt-2">
+      <ResourceCardFooter>
         <Button
           type="button"
           variant="secondary"
@@ -49,18 +48,12 @@ export default function AgentCard({ agent, onConfigure, onDelete }: Readonly<Age
           Configure
         </Button>
         {onDelete && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => onDelete(agent.name)}
-            aria-label={`Delete ${agent.name}`}
-            className="ml-auto h-8 w-8"
-          >
-            <Trash2 className="h-4 w-4" aria-hidden="true" />
-          </Button>
+          <ResourceCardDeleteButton
+            resourceName={agent.name}
+            onActivate={() => onDelete(agent.name)}
+          />
         )}
-      </div>
-    </div>
+      </ResourceCardFooter>
+    </ResourceCard>
   );
 }

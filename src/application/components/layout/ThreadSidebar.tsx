@@ -10,7 +10,7 @@ import {
   isBuiltinAgent,
   sortAgentsBuiltinFirst,
 } from "@/domain/entities/agent/agentConfigMetadata";
-import { badgeVariants } from "@/application/components/ui/badge";
+import { badgeVariants } from "@/application/components/ui/badge-variants";
 import { Button } from "@/application/components/ui/button";
 import ThreadSourceBadge from "@/application/components/shared/ThreadSourceBadge";
 import {
@@ -151,7 +151,7 @@ export default function ThreadSidebar({ activeThreadId }: Readonly<ThreadSidebar
       </div>
 
       <Dialog open={showAgentDialog} onOpenChange={(v) => setShowAgentDialog(v)}>
-        <DialogContent className="max-w-sm w-full">
+        <DialogContent className="max-w-sm w-[calc(100%-2rem)]">
           <DialogHeader>
             <DialogTitle className="font-display text-base uppercase tracking-[0.06em]">
               Choose an Agent

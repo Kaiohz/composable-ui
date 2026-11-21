@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { useStoreFilePreviews } from "@/application/hooks/store/useStoreFilePreviews";
 import { parseFrontmatter } from "@/application/lib/frontmatter";
 import SkillCard from "@/application/components/skill/SkillCard";
+import { RESOURCE_CARD_GRID_CLASS } from "@/application/components/ui/resource-card";
 
 interface SkillGridProps {
   readonly onCreateNew: () => void;
@@ -49,18 +50,24 @@ export default function SkillGrid({ onCreateNew, onConfigure }: Readonly<SkillGr
 
   if (skillCards.length === 0) {
     return (
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3" data-od-id="skill-grid">
+      <div className={RESOURCE_CARD_GRID_CLASS} data-od-id="skill-grid">
         <SkillCreateButton onClick={onCreateNew} />
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3" data-od-id="skill-grid">
+    <div className={RESOURCE_CARD_GRID_CLASS} data-od-id="skill-grid">
       {skillCards.map((card) => (
-        <div key={card.path} className="min-w-0">
-          <SkillCard name={card.name} description={card.description} onConfigure={onConfigure} />
-        </div>
+        // The card itself is the grid item: ResourceCard carries `min-w-0`
+        // (review I4) and `h-full`, so track blowout and unequal heights are
+        // both impossible.
+        <SkillCard
+          key={card.path}
+          name={card.name}
+          description={card.description}
+          onConfigure={onConfigure}
+        />
       ))}
       <SkillCreateButton onClick={onCreateNew} />
     </div>

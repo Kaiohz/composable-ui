@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Plus } from "lucide-react";
 import { useStoreFilePreviews } from "@/application/hooks/store/useStoreFilePreviews";
 import MemoryCard from "@/application/components/memory/MemoryCard";
+import { RESOURCE_CARD_GRID_CLASS } from "@/application/components/ui/resource-card";
 
 interface MemoryGridProps {
   readonly onCreateNew: () => void;
@@ -41,17 +42,14 @@ export default function MemoryGrid({ onCreateNew, onConfigure }: Readonly<Memory
 
   if (sortedPreviews.length === 0) {
     return (
-      <div
-        className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
-        data-od-id="memory-grid"
-      >
+      <div className={RESOURCE_CARD_GRID_CLASS} data-od-id="memory-grid">
         <MemoryCreateButton onClick={onCreateNew} />
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3" data-od-id="memory-grid">
+    <div className={RESOURCE_CARD_GRID_CLASS} data-od-id="memory-grid">
       {sortedPreviews.map((item) => {
         const name = deriveNameFromPath(item.path);
         const preview =
@@ -59,9 +57,10 @@ export default function MemoryGrid({ onCreateNew, onConfigure }: Readonly<Memory
             ? `${item.preview.slice(0, PREVIEW_CHARS)}…`
             : item.preview;
         return (
-          <div key={item.path} className="min-w-0">
-            <MemoryCard name={name} preview={preview} onConfigure={onConfigure} />
-          </div>
+          // The card itself is the grid item: ResourceCard carries `min-w-0`
+          // (review I4) and `h-full`, so track blowout and unequal heights
+          // are both impossible.
+          <MemoryCard key={item.path} name={name} preview={preview} onConfigure={onConfigure} />
         );
       })}
       <MemoryCreateButton onClick={onCreateNew} />

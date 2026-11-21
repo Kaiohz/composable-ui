@@ -4,8 +4,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  STRUCTURED_DIALOG_CONTENT_CLASS,
 } from "@/application/components/ui/dialog";
-import { ScrollArea } from "@/application/components/ui/scroll-area";
+import { cn } from "@/application/lib/utils";
 
 interface PageContent {
   page: number;
@@ -43,9 +44,7 @@ function isLegacyTable(value: MarkdownTable | LegacyTable): value is LegacyTable
 function normalizeTables(
   tables: TablesInput,
 ):
-  | { kind: "markdown"; tables: MarkdownTable[] }
-  | { kind: "legacy"; tables: LegacyTable[] }
-  | null {
+  { kind: "markdown"; tables: MarkdownTable[] } | { kind: "legacy"; tables: LegacyTable[] } | null {
   if (tables === null) return null;
   if (tables.length === 0) return { kind: "markdown", tables: [] };
   return isLegacyTable(tables[0])
@@ -64,7 +63,12 @@ export default function FileContentPanel({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl w-full sm:w-[480px] sm:max-w-[640px] lg:w-[640px] max-h-[90vh] flex flex-col overflow-hidden p-0">
+      <DialogContent
+        className={cn(
+          STRUCTURED_DIALOG_CONTENT_CLASS,
+          "max-w-3xl w-[calc(100%-2rem)] sm:w-[480px] sm:max-w-[640px] lg:w-[640px]",
+        )}
+      >
         <DialogHeader className="px-4 py-3 border-b border-border space-y-1.5">
           <DialogTitle className="font-display text-lg">File Content</DialogTitle>
           <DialogDescription className="sr-only">Preview of file content</DialogDescription>
@@ -75,7 +79,11 @@ export default function FileContentPanel({
           <span className="break-all">{metadata?.mime_type ?? ""}</span>
         </div>
 
-        <ScrollArea className="flex-1 max-h-[70vh]">
+        {/* Bounded scroll body: same plain-body pattern as the Agent
+            configuration viewer — the ScrollArea root could clip content
+            inside the max-height shell (indefinite viewport percentage,
+            BUG-003 — MODAL-002/005/008). */}
+        <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto">
           <div className="px-4 py-4">
             {isPageArray(content) ? (
               content.map((page, idx) => (
@@ -160,7 +168,7 @@ export default function FileContentPanel({
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );

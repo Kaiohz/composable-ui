@@ -30,7 +30,16 @@ const AlertDialogContent = React.forwardRef<
     <AlertDialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-surface border border-border text-fg block-shadow-raised animate-modal-enter p-6",
+        "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2",
+        // Same viewport-safe width as DialogContent — 100% minus a 1rem
+        // gutter on each side (spec MODAL-003; a fixed element's containing
+        // block is the viewport, so `w-full` leaves no visible margin).
+        "w-[calc(100%-2rem)]",
+        "max-w-md bg-surface border border-border text-fg block-shadow-raised animate-modal-enter p-6 sm:p-8",
+        // Same shared viewport/overflow contract as DialogContent
+        // (spec unify-cards-modals MODAL-001..004, MODAL-007, SPACE-001): long
+        // confirmation messages stay scrollable with Cancel/actions reachable.
+        "max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain",
         className,
       )}
       {...props}

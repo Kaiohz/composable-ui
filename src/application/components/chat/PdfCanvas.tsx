@@ -20,7 +20,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/TextLayer.css";
 import { Button } from "@/application/components/ui/button";
-import { ScrollArea } from "@/application/components/ui/scroll-area";
 
 // Worker configured in the same module as <Document>/<Page> (REQ-082).
 // Environments that stub react-pdf without the ``pdfjs`` re-export (unit
@@ -103,9 +102,12 @@ export default function PdfCanvas({ file }: Readonly<PdfCanvasProps>) {
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
-      <ScrollArea
+      {/* Bounded scroll body (BUG-003 audit): the previous Radix ScrollArea
+          could clip inside its max-height box (indefinite viewport
+          percentage); a plain `max-h` + `overflow-y-auto` region cannot. */}
+      <div
         data-od-id="pdf-preview-canvas"
-        className="max-h-[60vh] border border-border bg-surface-warm p-4"
+        className="max-h-[60vh] overscroll-contain overflow-y-auto border border-border bg-surface-warm p-4"
       >
         {loadFailed ? (
           PDF_RENDER_ERROR
@@ -130,7 +132,7 @@ export default function PdfCanvas({ file }: Readonly<PdfCanvasProps>) {
             </Suspense>
           </PdfErrorBoundary>
         )}
-      </ScrollArea>
+      </div>
     </div>
   );
 }

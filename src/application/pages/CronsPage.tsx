@@ -1,11 +1,17 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Timer } from "lucide-react";
 import AppShell from "@/application/components/layout/AppShell";
 import CronEditorDialog from "@/application/components/cron/CronEditorDialog";
 import CronRunHistoryDialog from "@/application/components/cron/CronRunHistoryDialog";
 import StatusBadge from "@/application/components/shared/StatusBadge";
 import { Button } from "@/application/components/ui/button";
 import { Badge } from "@/application/components/ui/badge";
+import {
+  RESOURCE_CARD_GRID_CLASS,
+  ResourceCard,
+  ResourceCardDeleteButton,
+  ResourceCardFooter,
+} from "@/application/components/ui/resource-card";
 import { toast } from "sonner";
 import { useCrons } from "@/application/hooks/cron/useCrons";
 import { useDeleteCron } from "@/application/hooks/cron/useDeleteCron";
@@ -170,9 +176,9 @@ export default function CronsPage() {
         )}
 
         {!isLoading && !isError && items.length > 0 && (
-          <div className="flex flex-col gap-4" data-od-id="crons-list">
+          <div className={RESOURCE_CARD_GRID_CLASS} data-od-id="crons-list">
             {items.map((cron) => (
-              <CronRow
+              <CronCard
                 key={cron.id}
                 cron={cron}
                 confirming={confirmingId === cron.id}
@@ -212,7 +218,7 @@ export default function CronsPage() {
   );
 }
 
-interface CronRowProps {
+interface CronCardProps {
   readonly cron: CronSchedule;
   readonly confirming: boolean;
   readonly onEdit: () => void;
@@ -222,7 +228,13 @@ interface CronRowProps {
   readonly onConfirmDelete: () => void;
 }
 
-function CronRow({
+/**
+ * Cron resource card, rendered through the shared resource-card composition
+ * (spec unify-cards-modals CARD-001..010). The stable QA hook stays
+ * `data-od-id="cron-row"`; the row is now a card in the standard responsive
+ * grid. All scheduling/run information and workflow actions are retained.
+ */
+function CronCard({
   cron,
   confirming,
   onEdit,
@@ -230,28 +242,26 @@ function CronRow({
   onRunNow,
   onViewHistory,
   onConfirmDelete,
-}: Readonly<CronRowProps>) {
+}: Readonly<CronCardProps>) {
   return (
-    <article
-      data-od-id="cron-row"
-      className="flex flex-col gap-3 border border-border bg-surface p-4"
-    >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="truncate font-display text-sm uppercase tracking-[0.06em] text-fg">
-            {cron.name}
-          </h3>
-          <p className="truncate font-mono text-xs text-muted">
-            agent <span className="text-fg">{cron.agent_name}</span>
-          </p>
-        </div>
-        <div className="flex items-center gap-2 font-mono text-xs text-muted">
-          <span className="font-mono text-xs uppercase tracking-[0.1em]">
+    <ResourceCard
+      odId="cron-row"
+      icon={Timer}
+      title={cron.name}
+      badges={
+        <>
+          <span className="shrink-0 font-mono text-xs uppercase tracking-[0.1em] text-muted">
             {cron.enabled ? "Enabled" : "Disabled"}
           </span>
-          {cron.last_run_status && <StatusBadge status={cron.last_run_status} />}
-        </div>
-      </div>
+          {cron.last_run_status && (
+            <StatusBadge status={cron.last_run_status} className="shrink-0" />
+          )}
+        </>
+      }
+    >
+      <p className="truncate font-mono text-xs text-muted">
+        agent <span className="text-fg">{cron.agent_name}</span>
+      </p>
 
       <div className="flex flex-wrap gap-x-5 gap-y-1 font-mono text-xs">
         <span>
@@ -273,7 +283,7 @@ function CronRow({
       </div>
       <p className="break-words font-mono text-xs text-fg-2">{cron.message}</p>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <ResourceCardFooter>
         <Button type="button" variant="outline" size="sm" onClick={onToggleEnabled}>
           {cron.enabled ? "Disable" : "Enable"}
         </Button>
@@ -286,10 +296,12 @@ function CronRow({
         <Button type="button" variant="secondary" size="sm" onClick={onEdit}>
           Edit
         </Button>
-        <Button type="button" variant="destructive" size="sm" onClick={onConfirmDelete}>
-          {confirming ? "Confirm Delete?" : "Delete"}
-        </Button>
-      </div>
-    </article>
+        <ResourceCardDeleteButton
+          resourceName={cron.name}
+          confirming={confirming}
+          onActivate={onConfirmDelete}
+        />
+      </ResourceCardFooter>
+    </ResourceCard>
   );
 }

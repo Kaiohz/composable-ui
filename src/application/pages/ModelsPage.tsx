@@ -1,10 +1,16 @@
 import { useState } from "react";
 import { flushSync } from "react-dom";
-import { Plus } from "lucide-react";
+import { Cpu, Plus } from "lucide-react";
 import AppShell from "@/application/components/layout/AppShell";
 import ModelEditorDialog from "@/application/components/model/ModelEditorDialog";
 import { Button } from "@/application/components/ui/button";
 import { Badge } from "@/application/components/ui/badge";
+import {
+  RESOURCE_CARD_GRID_CLASS,
+  ResourceCard,
+  ResourceCardDeleteButton,
+  ResourceCardFooter,
+} from "@/application/components/ui/resource-card";
 import { toast } from "sonner";
 import { useModels } from "@/application/hooks/model/useModels";
 import { useDeleteModel } from "@/application/hooks/model/useDeleteModel";
@@ -149,10 +155,7 @@ export default function ModelsPage() {
         )}
 
         {!isLoading && !isError && items.length > 0 && (
-          <div
-            className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
-            data-od-id="models-list"
-          >
+          <div className={RESOURCE_CARD_GRID_CLASS} data-od-id="models-list">
             {items.map((model) => (
               <ModelCard
                 key={model.id}
@@ -196,18 +199,24 @@ function ModelCard({
   onConfirmDelete,
 }: Readonly<ModelCardProps>) {
   return (
-    <article
-      data-od-id="model-card"
-      className="flex flex-col gap-3 border border-border bg-surface p-4"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="truncate font-display text-sm uppercase tracking-[0.06em] text-fg">
-          {model.name}
-        </h3>
-        <Badge variant="outline" data-od-id="model-provider" className="shrink-0 capitalize">
+    <ResourceCard
+      odId="model-card"
+      icon={Cpu}
+      title={model.name}
+      badges={
+        // `title` keeps the full (possibly ellipsis-clipped) provider value
+        // reachable on hover — same precedent as McpServerCard's URL badge
+        // (review J4).
+        <Badge
+          variant="outline"
+          data-od-id="model-provider"
+          className="shrink-0 capitalize"
+          title={model.provider}
+        >
           {model.provider}
         </Badge>
-      </div>
+      }
+    >
       <div className="space-y-1 font-mono text-xs">
         <p className="break-all">
           <span className="text-muted uppercase tracking-[0.1em]">Provider model</span>{" "}
@@ -222,20 +231,22 @@ function ModelCard({
         updated {formatDate(model.updated_at)} · {model.id.slice(0, SHORT_ID_LENGTH)}
       </p>
 
-      <div className="mt-auto flex flex-wrap items-center gap-2">
+      <ResourceCardFooter>
         <Button type="button" variant="secondary" size="sm" onClick={onEdit}>
           Edit
         </Button>
-        <Button type="button" variant="destructive" size="sm" onClick={onConfirmDelete}>
-          {confirming ? "Confirm Delete?" : "Delete"}
-        </Button>
-      </div>
+        <ResourceCardDeleteButton
+          resourceName={model.name}
+          confirming={confirming}
+          onActivate={onConfirmDelete}
+        />
+      </ResourceCardFooter>
 
       {deleteError && (
         <p role="alert" className="font-mono text-xs text-danger" data-od-id="model-delete-error">
           {deleteError}
         </p>
       )}
-    </article>
+    </ResourceCard>
   );
 }

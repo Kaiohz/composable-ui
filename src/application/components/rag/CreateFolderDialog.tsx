@@ -44,18 +44,18 @@ export default function CreateFolderDialog({
         if (!v) handleClose();
       }}
     >
-      <DialogContent
-        data-od-id="create-folder-dialog"
-        className="max-w-md flex flex-col overflow-hidden p-0"
-      >
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border space-y-1.5">
+      {/* Simple dialog: inherits the shared viewport bound, internal
+          scrolling and responsive padding; the sections below only carry
+          their structural separators (spec MODAL-001/002, SPACE-003). */}
+      <DialogContent data-od-id="create-folder-dialog" className="max-w-md">
+        <DialogHeader className="border-b border-border pb-4 space-y-1.5">
           <DialogTitle className="font-display text-lg">New Folder</DialogTitle>
           <DialogDescription className="text-sm text-muted">
             Enter a name for the new folder.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-6 py-4">
+        <div className="py-4">
           <Input
             type="text"
             aria-label="Folder name"
@@ -68,7 +68,7 @@ export default function CreateFolderDialog({
           />
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t border-border gap-2">
+        <DialogFooter className="gap-2 border-t border-border py-4">
           <Button type="button" variant="ghost" onClick={handleClose} disabled={isPending}>
             Cancel
           </Button>

@@ -195,6 +195,12 @@ interface AgentConfigFormProps {
   isPending?: boolean;
   /** Built-in mode hides server-managed sections and locks the HITL floor. */
   isBuiltin?: boolean;
+  /**
+   * When true the internal action row is not rendered — the owning dialog
+   * (e.g. AgentConfigViewer edit mode) supplies its own single Cancel/Save
+   * footer so one submit control is ever visible (review C1).
+   */
+  hideActions?: boolean;
 }
 
 export default function AgentConfigForm({
@@ -204,6 +210,7 @@ export default function AgentConfigForm({
   onCancel,
   isPending = false,
   isBuiltin = false,
+  hideActions = false,
 }: Readonly<AgentConfigFormProps>) {
   const [sourceState, setSourceState] = useState<SourceModeState>(() =>
     deriveSourceModeState(initialData),
@@ -657,14 +664,16 @@ export default function AgentConfigForm({
 
       <div className="h-2" aria-hidden="true" />
 
-      <div className="mt-6 hidden items-center justify-end gap-3 border-t border-border-soft pt-4 lg:flex">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={isPending}>
-          {submitLabel(isPending, mode)}
-        </Button>
-      </div>
+      {!hideActions && (
+        <div className="mt-6 hidden items-center justify-end gap-3 border-t border-border-soft pt-4 lg:flex">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {submitLabel(isPending, mode)}
+          </Button>
+        </div>
+      )}
     </form>
   );
 }
