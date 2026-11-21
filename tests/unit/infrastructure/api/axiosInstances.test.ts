@@ -1,4 +1,5 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
+import type { AxiosInstance } from "axios";
 
 // Stub configRepository so the request interceptor can resolve baseURL.
 const { MockFileConfigRepository } = vi.hoisted(() => {
@@ -28,8 +29,10 @@ vi.mock("@/infrastructure/config/configRepositoryInstance", () => ({
  * about — setting window.location.href — happens *before* the reject.
  * We swallow the rejection here so the test can assert on the redirect.
  */
-async function trigger401(client: any) {
-  const handler = (client.interceptors.response as any).handlers[0]?.rejected;
+async function trigger401(client: AxiosInstance) {
+  // `handlers` is part of axios' public `AxiosInterceptorManager` type;
+  // `rejected` is optional, hence the `?? undefined` chain.
+  const handler = client.interceptors.response.handlers?.[0]?.rejected;
   if (!handler) throw new Error("no rejected handler registered");
   const axios401 = {
     response: { status: 401, data: { detail: "Unauthorized" } },
@@ -114,7 +117,7 @@ describe("axios instances — withCredentials + 401 redirect", () => {
 
   it("apiClient non-401 error still rejects with the wrapped Error (status preserved)", async () => {
     const { apiClient } = await import("@/infrastructure/api/axiosInstance");
-    const handler = (apiClient.interceptors.response as any).handlers[0]?.rejected;
+    const handler = apiClient.interceptors.response.handlers?.[0]?.rejected;
     const axios500 = {
       response: { status: 500, data: { detail: "boom" } },
       message: "Request failed with status code 500",

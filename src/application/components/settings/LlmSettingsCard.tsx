@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -48,7 +48,7 @@ export default function LlmSettingsCard({ odId = "settings-llm" }: LlmSettingsCa
     handleSubmit,
     reset,
     setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm<LlmFormValues>({
     resolver: zodResolver(LlmSchema),
@@ -74,10 +74,23 @@ export default function LlmSettingsCard({ odId = "settings-llm" }: LlmSettingsCa
       base_url: settingsBaseUrl ?? PROVIDER_DEFAULTS.openai,
       api_key: "",
     });
-    setProviderDraft(provider);
-  }, [settingsProvider, settingsBaseUrl, settingsUpdatedAt, reset]);
+  }, [reset, settingsProvider, settingsBaseUrl, settingsUpdatedAt]);
 
-  const baseUrl = watch("base_url");
+  // The provider draft follows the backend settings, adjusted during render
+  // instead of a cascading setState inside the effect ("adjusting state when
+  // a prop changes", react.dev/learn/you-might-not-need-an-effect). A store
+  // with no settings (undefined) resolves to the openai default.
+  const loadedProvider = settingsProvider ?? "openai";
+  const [prevLoadedProvider, setPrevLoadedProvider] = useState(loadedProvider);
+  if (loadedProvider !== prevLoadedProvider) {
+    setPrevLoadedProvider(loadedProvider);
+    setProviderDraft(loadedProvider);
+  }
+
+  // `useWatch` (not `watch()`) — the field value is a memoizable subscription
+  // result, matching the react-hook-form pattern used elsewhere
+  // (react-hooks/incompatible-library).
+  const baseUrl = useWatch({ control, name: "base_url" });
 
   function onProviderChange(value: LlmProvider) {
     setProviderDraft(value);

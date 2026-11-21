@@ -30,18 +30,18 @@ export default function ConfirmDeleteDialog({
         if (!v && !isPending) onClose();
       }}
     >
-      <DialogContent
-        data-od-id="delete-confirm-dialog"
-        className="max-w-md flex flex-col overflow-hidden p-0"
-      >
-        <DialogHeader className="px-6 pt-6 pb-4 space-y-1.5">
+      {/* Simple dialog: inherits the shared viewport bound, internal
+          scrolling and responsive padding; the sections below only carry
+          their structural separators (spec MODAL-001/002, SPACE-003). */}
+      <DialogContent data-od-id="delete-confirm-dialog" className="max-w-md">
+        <DialogHeader className="space-y-1.5">
           <DialogTitle className="font-display text-lg">Delete {name}</DialogTitle>
           <DialogDescription className="text-sm text-muted">
             This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
 
-        <DialogFooter className="px-6 py-4 border-t border-border gap-2">
+        <DialogFooter className="mt-6 gap-2 border-t border-border pt-4">
           <Button type="button" variant="ghost" onClick={onClose} disabled={isPending}>
             Cancel
           </Button>

@@ -164,13 +164,7 @@ const FormMessage = React.forwardRef<
 });
 FormMessage.displayName = "FormMessage";
 
-export {
-  useFormField,
-  Form,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormDescription,
-  FormMessage,
-  FormField,
-};
+// `useFormField` stays internal (used by FormControl/FormDescription/
+// FormMessage): the file then exports only components, which fast refresh
+// requires (react-refresh/only-export-components).
+export { Form, FormItem, FormLabel, FormControl, FormDescription, FormMessage, FormField };

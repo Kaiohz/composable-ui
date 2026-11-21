@@ -1,6 +1,7 @@
 import { Plus } from "lucide-react";
 import { useMcpRegistry } from "@/application/hooks/mcpServer/useMcpRegistry";
 import McpServerCard from "@/application/components/mcpServer/McpServerCard";
+import { RESOURCE_CARD_GRID_CLASS } from "@/application/components/ui/resource-card";
 import type { RegisteredMcpServer } from "@/domain/entities/mcpServer/registeredMcpServer";
 
 interface McpServerGridProps {
@@ -43,10 +44,7 @@ export default function McpServerGrid({
   }
 
   return (
-    <div
-      className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
-      data-od-id="mcp-server-grid"
-    >
+    <div className={RESOURCE_CARD_GRID_CLASS} data-od-id="mcp-server-grid">
       {(Array.isArray(servers) ? servers : []).map((server) => (
         <McpServerCard key={server.name} server={server} onEdit={onEdit} onDelete={onDelete} />
       ))}

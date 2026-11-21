@@ -1,10 +1,16 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { FileText, Plus } from "lucide-react";
 import AppShell from "@/application/components/layout/AppShell";
 import PromptEditorDialog from "@/application/components/prompt/PromptEditorDialog";
 import PromptVersionsDialog from "@/application/components/prompt/PromptVersionsDialog";
 import { Button } from "@/application/components/ui/button";
 import { Badge } from "@/application/components/ui/badge";
+import {
+  RESOURCE_CARD_GRID_CLASS,
+  ResourceCard,
+  ResourceCardDeleteButton,
+  ResourceCardFooter,
+} from "@/application/components/ui/resource-card";
 import { toast } from "sonner";
 import { usePrompts } from "@/application/hooks/prompt/usePrompts";
 import { useDeletePrompt } from "@/application/hooks/prompt/useDeletePrompt";
@@ -145,10 +151,7 @@ export default function PromptsPage() {
         )}
 
         {!isLoading && !isError && items.length > 0 && (
-          <div
-            className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
-            data-od-id="prompts-list"
-          >
+          <div className={RESOURCE_CARD_GRID_CLASS} data-od-id="prompts-list">
             {items.map((prompt) => (
               <PromptCard
                 key={prompt.id}
@@ -206,18 +209,16 @@ function PromptCard({
   onViewVersions,
 }: Readonly<PromptCardProps>) {
   return (
-    <article
-      data-od-id="prompt-card"
-      className="flex flex-col gap-3 border border-border bg-surface p-4"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="truncate font-display text-sm uppercase tracking-[0.06em] text-fg">
-          {prompt.name}
-        </h3>
+    <ResourceCard
+      odId="prompt-card"
+      icon={FileText}
+      title={prompt.name}
+      badges={
         <Badge variant="outline" data-od-id="prompt-latest-version" className="shrink-0">
           Version {prompt.latest_version}
         </Badge>
-      </div>
+      }
+    >
       {prompt.description && (
         <p className="break-words font-mono text-xs text-fg-2">{prompt.description}</p>
       )}
@@ -228,23 +229,25 @@ function PromptCard({
       {/* Card actions always render — an open modal must never mutate the
           list behind it (BUG-003); modal-internal queries are scoped to the
           dialog container instead. */}
-      <div className="mt-auto flex flex-wrap items-center gap-2">
+      <ResourceCardFooter>
         <Button type="button" variant="secondary" size="sm" onClick={onEdit}>
           Edit
         </Button>
         <Button type="button" variant="outline" size="sm" onClick={onViewVersions}>
           Version History
         </Button>
-        <Button type="button" variant="destructive" size="sm" onClick={onConfirmDelete}>
-          {confirming ? "Confirm Delete?" : "Delete"}
-        </Button>
-      </div>
+        <ResourceCardDeleteButton
+          resourceName={prompt.name}
+          confirming={confirming}
+          onActivate={onConfirmDelete}
+        />
+      </ResourceCardFooter>
 
       {deleteError && (
         <p role="alert" className="font-mono text-xs text-danger" data-od-id="prompt-delete-error">
           {deleteError}
         </p>
       )}
-    </article>
+    </ResourceCard>
   );
 }

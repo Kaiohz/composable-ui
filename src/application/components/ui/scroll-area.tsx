@@ -12,7 +12,10 @@ const ScrollArea = React.forwardRef<
     className={cn("relative overflow-hidden", className)}
     {...props}
   >
-    <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit] bg-transparent">
+    {/* `overscroll-contain` lives on the Viewport: it is the actual
+        scrollable element, so reaching its start/end cannot scroll the
+        obscured page behind a dialog (spec unify-cards-modals MODAL-004). */}
+    <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit] bg-transparent overscroll-contain">
       {children}
     </ScrollAreaPrimitive.Viewport>
     <ScrollBar />

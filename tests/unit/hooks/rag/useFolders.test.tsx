@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { useFolders } from "@/application/hooks/rag/useFolders";
 import { ragApi } from "@/infrastructure/api/rag/ragApi";
+import { FolderEntry } from "@/domain/entities/rag/fileEntry";
 import type { ReactNode } from "react";
 
 vi.mock("@/infrastructure/api/rag/ragApi", () => ({
@@ -27,8 +28,8 @@ describe("useFolders", () => {
   });
 
   it("returns folder list on success", async () => {
-    const folders = [{ prefix: "docs/" }, { prefix: "images/" }];
-    vi.mocked(ragApi.listFolders).mockResolvedValue(folders as any);
+    const folders = [new FolderEntry({ prefix: "docs/" }), new FolderEntry({ prefix: "images/" })];
+    vi.mocked(ragApi.listFolders).mockResolvedValue(folders);
 
     const { result } = renderHook(() => useFolders(""), {
       wrapper: createWrapper(),

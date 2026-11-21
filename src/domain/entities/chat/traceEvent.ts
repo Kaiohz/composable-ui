@@ -34,9 +34,7 @@ export interface ThreadHistory {
 }
 
 export type StructuredResponseResult =
-  | { kind: "valid"; data: unknown }
-  | { kind: "missing" }
-  | { kind: "malformed"; error: string };
+  { kind: "valid"; data: unknown } | { kind: "missing" } | { kind: "malformed"; error: string };
 
 export function getStructuredResponseFromAIEvent(ev: TraceEvent): StructuredResponseResult | null {
   if (ev.type !== TraceEventType.AI_MESSAGE) return null;

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { AxiosInstance } from "axios";
 
 const { MockFileConfigRepository } = vi.hoisted(() => {
   const mockConfig = {
@@ -16,6 +17,20 @@ const { MockFileConfigRepository } = vi.hoisted(() => {
 vi.mock("@/infrastructure/config/configRepositoryInstance", () => ({
   configRepository: new MockFileConfigRepository(),
 }));
+
+/**
+ * Extracts the rejected-handler from an axios response interceptor stack.
+ * `handlers` is part of the public `AxiosInterceptorManager` type; the only
+ * non-public bit is the handler function shape itself (axios types export
+ * the manager, not the handler fn), so it is narrowed structurally.
+ */
+type RejectedInterceptorHandler = (error: unknown) => Promise<unknown>;
+
+function rejectedHandlerOf(client: AxiosInstance): RejectedInterceptorHandler {
+  const handler = client.interceptors.response.handlers?.[0]?.rejected;
+  expect(handler).toBeDefined();
+  return handler as RejectedInterceptorHandler;
+}
 
 describe("axiosInstance", () => {
   beforeEach(() => {
@@ -55,16 +70,13 @@ describe("axiosInstance", () => {
       message: "Request failed with status code 400",
     };
 
-    const interceptors = (apiClient.interceptors.response as any).handlers;
-    const errorHandler = interceptors[0]?.rejected;
-
-    expect(errorHandler).toBeDefined();
+    const errorHandler = rejectedHandlerOf(apiClient);
 
     try {
       await errorHandler(axiosError);
-    } catch (error: any) {
+    } catch (error) {
       expect(error).toBeInstanceOf(Error);
-      expect(error.message).toBe("Agent not found");
+      expect((error as Error).message).toBe("Agent not found");
     }
   });
 
@@ -79,14 +91,13 @@ describe("axiosInstance", () => {
       message: "Internal Server Error",
     };
 
-    const interceptors = (apiClient.interceptors.response as any).handlers;
-    const errorHandler = interceptors[0]?.rejected;
+    const errorHandler = rejectedHandlerOf(apiClient);
 
     try {
       await errorHandler(axiosError);
-    } catch (error: any) {
+    } catch (error) {
       expect(error).toBeInstanceOf(Error);
-      expect(error.message).toBe("Internal Server Error");
+      expect((error as Error).message).toBe("Internal Server Error");
     }
   });
 
@@ -101,16 +112,15 @@ describe("axiosInstance", () => {
       message: "Request failed with status code 404",
     };
 
-    const interceptors = (apiClient.interceptors.response as any).handlers;
-    const errorHandler = interceptors[0]?.rejected;
+    const errorHandler = rejectedHandlerOf(apiClient);
 
     try {
       await errorHandler(axiosError);
       expect.fail("should have thrown");
-    } catch (error: any) {
+    } catch (error) {
       expect(error).toBeInstanceOf(Error);
-      expect(error.message).toBe("File not found: /skills/ghost/SKILL.md");
-      expect(error.status).toBe(404);
+      expect((error as Error).message).toBe("File not found: /skills/ghost/SKILL.md");
+      expect((error as Error & { status?: number }).status).toBe(404);
     }
   });
 
@@ -119,14 +129,13 @@ describe("axiosInstance", () => {
 
     const networkError = new Error("Network Error");
 
-    const interceptors = (apiClient.interceptors.response as any).handlers;
-    const errorHandler = interceptors[0]?.rejected;
+    const errorHandler = rejectedHandlerOf(apiClient);
 
     try {
       await errorHandler(networkError);
-    } catch (error: any) {
+    } catch (error) {
       expect(error).toBeInstanceOf(Error);
-      expect(error.message).toBe("Network Error");
+      expect((error as Error).message).toBe("Network Error");
     }
   });
 });

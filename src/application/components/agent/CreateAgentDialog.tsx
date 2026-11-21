@@ -9,10 +9,13 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  STRUCTURED_DIALOG_BODY_CLASS,
+  STRUCTURED_DIALOG_CONTENT_CLASS,
 } from "@/application/components/ui/dialog";
 import { Button } from "@/application/components/ui/button";
 import { Input } from "@/application/components/ui/input";
 import { Label } from "@/application/components/ui/label";
+import { cn } from "@/application/lib/utils";
 import AgentConfigForm from "./AgentConfigForm";
 import type { AgentConfigFormData } from "@/domain/entities/agent/agentConfigSchema";
 import type { AgentConfig } from "@/domain/entities/agent/agentConfig";
@@ -102,7 +105,7 @@ export default function CreateAgentDialog({
         if (!v) handleClose();
       }}
     >
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden p-0 sm:p-0">
+      <DialogContent className={cn(STRUCTURED_DIALOG_CONTENT_CLASS, "max-w-3xl")}>
         <div className="shrink-0 border-b border-border bg-surface px-6 pb-4 pt-6 sm:px-8">
           <DialogHeader className="space-y-2">
             <DialogTitle className="font-display text-lg">Create Agent</DialogTitle>
@@ -123,10 +126,17 @@ export default function CreateAgentDialog({
           </div>
         </div>
 
-        <div className="flex-1 overscroll-contain overflow-y-auto overflow-x-hidden bg-surface px-6 py-6 sm:px-8">
+        {/* Body region: `min-h-0` + `overflow-y-auto` + `overscroll-contain`
+            (STRUCTURED_DIALOG_BODY_CLASS) so the content is scrollable inside
+            the non-scrolling shell and can never be silently clipped. */}
+        <div className={cn(STRUCTURED_DIALOG_BODY_CLASS, "overflow-x-hidden")}>
           {mode === "form" ? (
             <AgentConfigForm
               mode="create"
+              // The pinned footer owns the single Cancel/Create Agent action
+              // set — the form's internal row (visible ≥ lg) must not
+              // duplicate it (BUG-001, same contract as the edit dialog).
+              hideActions
               onSubmit={handleFormSubmit}
               onCancel={handleClose}
               isPending={createAgent.isPending}

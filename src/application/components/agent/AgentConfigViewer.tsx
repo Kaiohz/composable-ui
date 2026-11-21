@@ -22,9 +22,10 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  STRUCTURED_DIALOG_CONTENT_CLASS,
 } from "@/application/components/ui/dialog";
 import { Button } from "@/application/components/ui/button";
-import { ScrollArea } from "@/application/components/ui/scroll-area";
+import { cn } from "@/application/lib/utils";
 import AgentConfigForm from "./AgentConfigForm";
 import { AGENT_CONFIG_FORM_ID } from "./formConstants";
 
@@ -171,7 +172,7 @@ export default function AgentConfigViewer({
         if (!v) handleClose();
       }}
     >
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden p-0 sm:p-0">
+      <DialogContent className={cn(STRUCTURED_DIALOG_CONTENT_CLASS, "max-w-3xl")}>
         <div className="shrink-0 border-b border-border bg-surface px-6 pb-4 pt-6 sm:px-8">
           <DialogHeader className="space-y-1.5">
             <div className="flex items-center gap-2">
@@ -251,6 +252,15 @@ interface ViewerBodyProps {
   readonly isBuiltin: boolean;
 }
 
+/** Bounded dialog body shared by both AgentConfigViewer modes: a plain
+ * `min-h-0` overflow region is what QA validated end-to-end. The former
+ * ScrollArea root can clip its content: inside an auto-height shell bounded
+ * only by `max-h-*`, the viewport's `h-full` percentage is indefinite, so it
+ * grows to content height and the `overflow-hidden` root silently clips the
+ * rest (BUG-003 — MODAL-002/005/008). */
+const VIEWER_BODY_CLASS =
+  "min-h-0 flex-1 overscroll-contain overflow-y-auto bg-surface px-6 py-6 sm:px-8";
+
 function ViewerBody({
   config,
   isLoading,
@@ -272,16 +282,30 @@ function ViewerBody({
   if (mode === "edit" && config) {
     return (
       <>
-        <AgentConfigForm
-          mode="edit"
-          initialData={config}
-          onSubmit={onSubmit}
-          onCancel={onToggleMode}
-          isPending={isPending}
-          isBuiltin={isBuiltin}
-        />
-        <div className="mt-4 flex items-center gap-3 border-t border-border-soft pt-4 lg:hidden">
-          <Button type="submit" form={AGENT_CONFIG_FORM_ID} disabled={isPending} className="flex-1">
+        {/* Edit body: a defined scrollable region inside the overflow-hidden
+            shell — a tall form is reachable by scrolling instead of being
+            clipped (spec MODAL-005 / MODAL-008). `hideActions` lets the
+            owning dialog own the single action set (review C1). */}
+        <div className={`${VIEWER_BODY_CLASS} overflow-x-hidden`}>
+          <AgentConfigForm
+            mode="edit"
+            hideActions
+            initialData={config}
+            onSubmit={onSubmit}
+            onCancel={onToggleMode}
+            isPending={isPending}
+            isBuiltin={isBuiltin}
+          />
+        </div>
+        {/* Pinned edit footer — the ONLY action row in edit mode: Cancel
+            stays reachable at every viewport width and exactly one submit
+            control exists (review C1). */}
+        <div className="flex shrink-0 items-center gap-3 border-t border-border bg-surface px-6 py-4 sm:px-8">
+          <Button type="button" variant="outline" onClick={onToggleMode}>
+            Cancel
+          </Button>
+          <div className="flex-1" />
+          <Button type="submit" form={AGENT_CONFIG_FORM_ID} disabled={isPending}>
             {isPending ? "Saving…" : "Save Changes"}
           </Button>
         </div>
@@ -289,7 +313,9 @@ function ViewerBody({
     );
   }
   return (
-    <ScrollArea className="max-h-[70vh]">
+    /* View body: the same plain bounded region as the edit body, validated by
+       the scrolling QA. */
+    <div className={VIEWER_BODY_CLASS}>
       {isLoading && (
         <p className="py-8 text-center font-mono text-sm text-muted" aria-live="polite">
           Loading configuration…
@@ -315,7 +341,7 @@ function ViewerBody({
           onRetryModelRegistry={onRetryModelRegistry}
         />
       )}
-    </ScrollArea>
+    </div>
   );
 }
 

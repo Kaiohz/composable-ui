@@ -2,6 +2,7 @@ import { Plus } from "lucide-react";
 import { useAgents } from "@/application/hooks/agent/useAgents";
 import { sortAgentsBuiltinFirst } from "@/domain/entities/agent/agentConfigMetadata";
 import AgentCard from "@/application/components/agent/AgentCard";
+import { RESOURCE_CARD_GRID_CLASS } from "@/application/components/ui/resource-card";
 
 interface AgentGridProps {
   onCreateNew: () => void;
@@ -34,11 +35,12 @@ export default function AgentGrid({ onCreateNew, onConfigure }: Readonly<AgentGr
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3" data-od-id="agent-grid">
+    <div className={RESOURCE_CARD_GRID_CLASS} data-od-id="agent-grid">
       {sortedAgents.map((agent) => (
-        <div key={agent.name} className="min-w-0">
-          <AgentCard agent={agent} onConfigure={onConfigure} />
-        </div>
+        // The card itself is the grid item: ResourceCard carries `min-w-0`
+        // (review I4) and `h-full`, so track blowout and unequal heights are
+        // both impossible.
+        <AgentCard key={agent.name} agent={agent} onConfigure={onConfigure} />
       ))}
 
       <button

@@ -233,7 +233,7 @@ describe("ModelsPage", () => {
     const user = userEvent.setup();
 
     renderWithProviders(<ModelsPage />, { initialEntries: ["/models"] });
-    await cardButton(user, "Legacy GPT", /^delete$/i);
+    await cardButton(user, "Legacy GPT", /^delete legacy gpt$/i);
     await user.click(screen.getByRole("button", { name: /confirm delete/i }));
 
     expect(deleteModelMutate).toHaveBeenCalledWith(
@@ -247,7 +247,7 @@ describe("ModelsPage", () => {
     const user = userEvent.setup();
 
     renderWithProviders(<ModelsPage />, { initialEntries: ["/models"] });
-    await cardButton(user, "Fast Haiku", /^delete$/i);
+    await cardButton(user, "Fast Haiku", /^delete fast haiku$/i);
     await user.click(screen.getByRole("button", { name: /confirm delete/i }));
 
     const options = deleteModelMutate.mock.calls[0][1] as {

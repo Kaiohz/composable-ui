@@ -28,16 +28,12 @@ interface PdfPreviewDialogProps {
 }
 
 type PdfPreviewStatus =
-  | { kind: "loading" }
-  | { kind: "ready"; file: string }
-  | { kind: "error"; message: string };
+  { kind: "loading" } | { kind: "ready"; file: string } | { kind: "error"; message: string };
 
 type PdfCanvasComponent = ComponentType<{ file: string }>;
 
 type FetchOutcome =
-  | { kind: "ok"; content: string }
-  | { kind: "miss" }
-  | { kind: "error"; message: string };
+  { kind: "ok"; content: string } | { kind: "miss" } | { kind: "error"; message: string };
 
 const NOT_FOUND_MESSAGE =
   "PDF not found (404): this document no longer exists in your store — it may have been deleted with its thread.";
@@ -49,22 +45,36 @@ export default function PdfPreviewDialog({
   filename,
   mimeType,
 }: Readonly<PdfPreviewDialogProps>) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent data-od-id="pdf-preview-dialog" className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{filename}</DialogTitle>
+          <DialogDescription className="font-mono text-xs">
+            Generated PDF document
+          </DialogDescription>
+        </DialogHeader>
+        {/* The loader only exists while the dialog is open: closing unmounts
+            it, so its state resets naturally on the next open — no reset
+            effect (react-hooks/set-state-in-effect). */}
+        {open ? <PdfLoader path={path} mimeType={mimeType} /> : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Mount-scoped loader: owns the fetch + dynamic-import lifecycle while the
+ * dialog is open (module level, not inline — rerender-no-inline-components).
+ */
+function PdfLoader({ path, mimeType }: Readonly<{ path: string; mimeType: string }>) {
   const [status, setStatus] = useState<PdfPreviewStatus>({ kind: "loading" });
   const [PdfCanvas, setPdfCanvas] = useState<PdfCanvasComponent | null>(null);
 
   useEffect(() => {
-    if (!open) {
-      setStatus({ kind: "loading" });
-      setPdfCanvas(null);
-      return;
-    }
-
     let cancelled = false;
 
     void (async () => {
-      setStatus({ kind: "loading" });
-      setPdfCanvas(null);
-
       const outcome: FetchOutcome = await loadPdfContent(path);
       if (cancelled) return;
       if (outcome.kind !== "ok") {
@@ -96,38 +106,30 @@ export default function PdfPreviewDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, path, mimeType]);
+  }, [path, mimeType]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-od-id="pdf-preview-dialog" className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{filename}</DialogTitle>
-          <DialogDescription className="font-mono text-xs">
-            Generated PDF document
-          </DialogDescription>
-        </DialogHeader>
-        {status.kind === "loading" && (
-          <div className="flex items-center justify-center gap-2 border border-border bg-bg p-6">
-            <span
-              className="spin inline-block h-4 w-4 border-2 border-accent border-t-transparent"
-              aria-hidden="true"
-            />
-            <span className="font-mono text-xs text-muted">Loading document…</span>
-          </div>
-        )}
-        {status.kind === "error" && (
-          <p
-            role="alert"
-            data-od-id="pdf-preview-error"
-            className="border border-danger bg-bg p-4 font-mono text-xs text-danger"
-          >
-            {status.message}
-          </p>
-        )}
-        {status.kind === "ready" && PdfCanvas && <PdfCanvas file={status.file} />}
-      </DialogContent>
-    </Dialog>
+    <>
+      {status.kind === "loading" && (
+        <div className="flex items-center justify-center gap-2 border border-border bg-bg p-6">
+          <span
+            className="spin inline-block h-4 w-4 border-2 border-accent border-t-transparent"
+            aria-hidden="true"
+          />
+          <span className="font-mono text-xs text-muted">Loading document…</span>
+        </div>
+      )}
+      {status.kind === "error" && (
+        <p
+          role="alert"
+          data-od-id="pdf-preview-error"
+          className="border border-danger bg-bg p-4 font-mono text-xs text-danger"
+        >
+          {status.message}
+        </p>
+      )}
+      {status.kind === "ready" && PdfCanvas ? <PdfCanvas file={status.file} /> : null}
+    </>
   );
 }
 

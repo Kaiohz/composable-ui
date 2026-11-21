@@ -15,7 +15,10 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  STRUCTURED_DIALOG_BODY_CLASS,
+  STRUCTURED_DIALOG_CONTENT_CLASS,
 } from "@/application/components/ui/dialog";
+import { cn } from "@/application/lib/utils";
 import {
   Select,
   SelectContent,
@@ -156,7 +159,7 @@ export function CreateMcpServerDialog({
       }}
     >
       <DialogContent
-        className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden p-0 sm:p-0"
+        className={cn(STRUCTURED_DIALOG_CONTENT_CLASS, "max-w-2xl")}
         data-od-id="create-mcp-server-dialog"
       >
         <div className="shrink-0 border-b border-border bg-surface px-6 pb-4 pt-6 sm:px-8">
@@ -171,7 +174,7 @@ export function CreateMcpServerDialog({
           </DialogHeader>
         </div>
 
-        <div className="flex-1 overscroll-contain overflow-y-auto bg-surface px-6 py-6 sm:px-8">
+        <div className={STRUCTURED_DIALOG_BODY_CLASS}>
           <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label

@@ -8,11 +8,14 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  STRUCTURED_DIALOG_BODY_CLASS,
+  STRUCTURED_DIALOG_CONTENT_CLASS,
 } from "@/application/components/ui/dialog";
 import { Button } from "@/application/components/ui/button";
 import { Input } from "@/application/components/ui/input";
 import { Label } from "@/application/components/ui/label";
 import { Textarea } from "@/application/components/ui/textarea";
+import { cn } from "@/application/lib/utils";
 
 interface CreateSkillDialogProps {
   readonly open: boolean;
@@ -72,7 +75,7 @@ export function CreateSkillDialog({ open, onOpenChange }: Readonly<CreateSkillDi
         if (!v) handleClose();
       }}
     >
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden p-0 sm:p-0">
+      <DialogContent className={cn(STRUCTURED_DIALOG_CONTENT_CLASS, "max-w-2xl")}>
         <div className="shrink-0 border-b border-border bg-surface px-6 pb-4 pt-6 sm:px-8">
           <DialogHeader className="space-y-1.5">
             <DialogTitle className="font-display text-lg">Create Skill</DialogTitle>
@@ -83,7 +86,7 @@ export function CreateSkillDialog({ open, onOpenChange }: Readonly<CreateSkillDi
           </DialogHeader>
         </div>
 
-        <div className="flex-1 overscroll-contain overflow-y-auto bg-surface px-6 py-6 sm:px-8">
+        <div className={STRUCTURED_DIALOG_BODY_CLASS}>
           <form id={SKILL_FORM_ID} onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="skill-name" className="mb-2 block text-xs uppercase tracking-[0.1em]">
