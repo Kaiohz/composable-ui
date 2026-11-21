@@ -1,37 +1,39 @@
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react-swc';
-import path from 'path';
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react-swc";
+import path from "path";
 
 export default defineConfig({
-  plugins: [react()] as any,
+  // `@vitejs/plugin-react-swc` returns Vite `PluginOption[]`: precise type
+  // instead of the previous `as any` (@typescript-eslint/no-explicit-any).
+  plugins: [react() as import("vite").PluginOption],
   test: {
     globals: true,
-    environment: 'jsdom',
+    environment: "jsdom",
     environmentOptions: {
       jsdom: {
-        url: 'http://localhost:3000',
+        url: "http://localhost:3000",
       },
     },
-    setupFiles: './tests/setup.ts',
+    setupFiles: "./tests/setup.ts",
     css: true,
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'lcov'],
-      reportsDirectory: './coverage',
+      provider: "v8",
+      reporter: ["text", "lcov"],
+      reportsDirectory: "./coverage",
       exclude: [
-        '**/node_modules/**',
-        '**/dist/**',
-        '**/*.test.ts',
-        '**/*.test.tsx',
-        '**/main.tsx',
-        '**/components/ui/**',
-        'tests/**',
+        "**/node_modules/**",
+        "**/dist/**",
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/main.tsx",
+        "**/components/ui/**",
+        "tests/**",
       ],
     },
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      "@": path.resolve(__dirname, "./src"),
     },
   },
 });

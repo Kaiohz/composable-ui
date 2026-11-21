@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { LogOut } from "lucide-react";
 import { Button } from "@/application/components/ui/button";
@@ -68,9 +68,14 @@ export default function SettingsPage() {
   const resetToDefaults = useSettingsStore((s) => s.resetToDefaults);
 
   const [accentDraft, setAccentDraft] = useState(accent);
-  useEffect(() => {
+  // Keep the free-form hex draft aligned with the store accent, adjusted
+  // during render instead of a cascading setState-in-effect ("adjusting
+  // state when a prop changes", react.dev/learn/you-might-not-need-an-effect).
+  const [prevAccent, setPrevAccent] = useState(accent);
+  if (accent !== prevAccent) {
+    setPrevAccent(accent);
     setAccentDraft(accent);
-  }, [accent]);
+  }
 
   const hue = hexToHue(accent);
 

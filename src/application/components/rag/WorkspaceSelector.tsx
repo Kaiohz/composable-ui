@@ -24,9 +24,14 @@ export default function WorkspaceSelector({
   const listRef = useRef<HTMLUListElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  useEffect(() => {
+  // Controlled-input sync from the prop, adjusted during render instead of a
+  // cascading setState-in-effect ("adjusting state when a prop changes",
+  // react.dev/learn/you-might-not-need-an-effect).
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
     setInputValue(value);
-  }, [value]);
+  }
 
   const filteredSuggestions = folders.filter(
     (f) => f !== value && (inputValue === "" || f.startsWith(inputValue)),

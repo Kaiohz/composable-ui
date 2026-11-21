@@ -200,7 +200,9 @@ const agents: DocChapter = {
         lbl("composable-ai-assistant"),
         txt(", press "),
         lbl("Edit"),
-        txt(" to personalize the editable fields for your account. The name, dynamic toolset, MCP servers and destructive-delete approval rules stay platform-managed. Once saved, the viewer shows a "),
+        txt(
+          " to personalize the editable fields for your account. The name, dynamic toolset, MCP servers and destructive-delete approval rules stay platform-managed. Once saved, the viewer shows a ",
+        ),
         lbl("customized"),
         txt(" badge and "),
         lbl("Reset to Default"),
@@ -218,7 +220,9 @@ const agents: DocChapter = {
         lbl("Export YAML"),
         txt(" to download the current definition as a file you can import later with "),
         lbl("Upload YAML"),
-        txt(". The built-in assistant keeps this action hidden because an exported YAML file cannot reproduce its dynamic toolset."),
+        txt(
+          ". The built-in assistant keeps this action hidden because an exported YAML file cannot reproduce its dynamic toolset.",
+        ),
       ],
       [
         txt("For a custom agent, press "),

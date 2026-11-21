@@ -65,22 +65,26 @@ export function useStoredAttachmentImages(
   threadId: string | null | undefined,
   attachments: ChatAttachmentDisplay[] | null | undefined,
 ): Record<string, string> {
-  const [urls, setUrls] = useState<Record<string, string>>({});
+  const [resolved, setResolved] = useState<Record<string, string> | null>(null);
   // Primitive key so the effect does not re-fire on identity churn
   // (rerender-dependencies rule).
   const attachmentsKey = attachments?.map((att) => att.id).join("|") ?? "";
+  const list = attachmentsKey ? (attachments ?? []) : [];
+  const hasResolvableAttachments = Boolean(threadId) && list.length > 0;
+
+  // Derived during render: with no resolvable attachments there is nothing to
+  // display — replaces the synchronous `setUrls({})` branch inside the effect
+  // (react-hooks/set-state-in-effect). Stale entries from a previous list are
+  // harmless: consumers look the record up per attachment id.
+  const urls = hasResolvableAttachments && resolved ? resolved : {};
 
   useEffect(() => {
-    const list = attachmentsKey ? attachments : [];
-    if (!threadId || !list || list.length === 0) {
-      setUrls({});
-      return;
-    }
+    if (!threadId || !hasResolvableAttachments) return;
 
     let cancelled = false;
 
     void (async () => {
-      const resolved = await Promise.all(
+      const resolvedEntries = await Promise.all(
         list.filter(isStoreResolvableImage).map(async (att) => {
           const content = await loadStoredAttachmentContent(chatAttachmentStorePath(threadId, att));
           if (!content) return null;
@@ -89,17 +93,17 @@ export function useStoredAttachmentImages(
       );
       if (cancelled) return;
       const next: Record<string, string> = {};
-      for (const entry of resolved) {
+      for (const entry of resolvedEntries) {
         if (entry) next[entry[0]] = entry[1];
       }
-      setUrls(next);
+      setResolved(next);
     })();
 
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [threadId, attachmentsKey]);
+  }, [threadId, attachmentsKey, hasResolvableAttachments]);
 
   return urls;
 }

@@ -10,7 +10,11 @@ import { Paperclip, Send, Square } from "lucide-react";
 import { Button } from "@/application/components/ui/button";
 import { cn } from "@/application/lib/utils";
 import { useStreamChat } from "@/application/hooks/chat/useStreamChat";
-import { useChatStore, type ComposerAttachment } from "@/application/stores/useChatStore";
+import {
+  useChatStore,
+  type ComposerAttachment,
+  type ComposerBackup,
+} from "@/application/stores/useChatStore";
 import ChatAttachmentList from "@/application/components/chat/ChatAttachmentList";
 import type { AgentConfig } from "@/domain/entities/agent/agentConfig";
 import type {
@@ -214,20 +218,30 @@ export default function ChatInput({ threadId, agentConfig = null }: Readonly<Cha
   }, [pendingAttachments]);
 
   // ─── REQ-071: restore the draft when a submit failed on the backend ──────
-  // Declared BEFORE the live-URL sync and revoke effects: within the same
-  // commit it runs first and records which preview object URLs the restored
-  // draft is STILL DISPLAYING, so the revoke guard below can never kill one
-  // of them (C1: the revoked-but-live blob URL).
+  // Applied during render from the external store snapshot ("adjusting state
+  // when a prop changes") instead of a cascading setState-in-effect. The
+  // tracker starts at `null` so an unconsumed leftover draft still applies
+  // on remount, exactly like the previous effect did. When the restored
+  // attachments land in `pendingAttachments`, the live-URL sync effect below
+  // re-records `livePreviewUrlsRef` in the same commit — before the
+  // backup-drop revoke guard runs (its declaration stays after), so the C1
+  // guard still never revokes a URL the restored draft is displaying.
+  const [renderedRestoredDraft, setRenderedRestoredDraft] = useState<ComposerBackup | null>(null);
+  if (composerRestoredDraft !== renderedRestoredDraft) {
+    setRenderedRestoredDraft(composerRestoredDraft);
+    if (composerRestoredDraft) {
+      setInput(composerRestoredDraft.text);
+      setPendingAttachments(composerRestoredDraft.attachments);
+    }
+  }
+
+  // The store snapshot is one-shot: consume it post-commit. This effect
+  // performs no setState — only the external store update (react-hooks/
+  // set-state-in-effect).
   useEffect(() => {
-    if (!composerRestoredDraft) return;
-    setInput(composerRestoredDraft.text);
-    setPendingAttachments(composerRestoredDraft.attachments);
-    livePreviewUrlsRef.current = new Set(
-      composerRestoredDraft.attachments
-        .map((attachment) => attachment.previewUrl)
-        .filter((url): url is string => Boolean(url)),
-    );
-    useChatStore.getState().consumeComposerRestoredDraft?.();
+    if (composerRestoredDraft) {
+      useChatStore.getState().consumeComposerRestoredDraft?.();
+    }
   }, [composerRestoredDraft]);
 
   // Keep the "currently displayed" URL set in sync with the composer draft —
