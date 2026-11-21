@@ -564,7 +564,10 @@ describe("AgentConfigViewer", () => {
 
     await user.click(screen.getByRole("button", { name: /^edit(\s+edit)?$/i }));
     expect(screen.getByLabelText(/^agent name$/i)).toBeDisabled();
-    expect(screen.queryByRole("button", { name: /mcp servers/i })).not.toBeInTheDocument();
+    // REQ-BUILTIN-001: the MCP registry selector is part of the built-in
+    // customization (same selector as custom agents)…
+    expect(screen.getByRole("button", { name: /mcp servers/i })).toBeInTheDocument();
+    // …while inline subagents stay unavailable (REQ-BUILTIN-004).
     expect(screen.queryByRole("button", { name: /subagents/i })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /^hitl$/i }));

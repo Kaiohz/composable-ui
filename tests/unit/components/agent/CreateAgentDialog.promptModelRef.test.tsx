@@ -1,17 +1,23 @@
 /**
- * Spec: prompts-models-crons-traces.md §AGT-001..AGT-004, §6, §10.5/10.6
- * CreateAgentDialog must serialize the registry selections into the existing
- * multipart YAML create flow:
- *  - Registry prompt + catalog model → YAML includes `prompt_ref` (id [+ version
- *    when pinned]) and `model_ref`, and omits `system_prompt`.
- *  - Inline prompt + legacy custom model → YAML includes
- *    `system_prompt` + `model` and omits `prompt_ref`/`model_ref`.
+ * Spec: agent-resource-import.md — resource-only creation flow (composable-ui).
  *
- * The full real chain runs: dialog → AgentConfigForm → serializeAgentConfig →
- * useCreateAgent mutation (only the data hooks for registries are mocked with
- * the hoisted-bag convention, plus the existing useCreateAgent boundary).
+ * The real chain runs: CreateAgentDialog → AgentConfigForm →
+ * agentConfigToYamlFile (serializeAgentConfig) → useCreateAgent mutation.
+ * Only the registry data hooks and the create-agent boundary are mocked with
+ * the hoisted-bag convention.
  *
- * Step-1 (Red): neither the form controls nor the YAML serialization exist.
+ * The inline+custom and file-mode YAML serialization suites were REPLACED by
+ * the resource-only contracts (tests/unit/components/agent/
+ * CreateAgentDialog.resourceOnly.test.tsx — REQ-FORM-001/002): there is no
+ * inline prompt, prompt file or custom model mode to serialize anymore. What
+ * remains valid (kept here):
+ *  - a registry prompt + a catalog model → YAML keeps `prompt_ref` (id [+
+ *    version when pinned]) and `model_ref`, and never re-emits the inline
+ *    fields;
+ *  - pinned-version serialization carries the exact immutable version;
+ *  - a prompt-registry load failure preserves the draft and surfaces a
+ *    scoped retry;
+ *  - no model credential controls of any kind.
  */
 import { screen, waitFor } from "@testing-library/react";
 import { within } from "@testing-library/dom";
@@ -25,7 +31,6 @@ import {
   createPromptVersion,
   createModelConfiguration,
 } from "../../../fixtures/registries";
-import type { AgentConfigMetadata } from "@/domain/entities/agent/agentConfigMetadata";
 import yaml from "js-yaml";
 
 const {
@@ -50,9 +55,11 @@ const {
   modelsState: {
     data: undefined as Array<ReturnType<typeof createModelConfiguration>> | undefined,
     isLoading: false,
+    isError: false,
+    error: undefined as unknown,
   },
   agentsState: {
-    data: undefined as AgentConfigMetadata[] | undefined,
+    data: [],
     isLoading: false,
   },
   registryState: {
@@ -105,9 +112,10 @@ async function chooseOption(
   await user.click(await screen.findByRole("option", { name: optionText }));
 }
 
-describe("CreateAgentDialog — registry selection YAML serialization", () => {
+describe("CreateAgentDialog — resource selection YAML serialization", () => {
   beforeEach(() => {
     createAgentMutate.mockReset();
+    promptsState.refetch.mockReset();
     promptsState.data = [
       createPromptMetadata({
         id: "prompt-registry-1",
@@ -122,19 +130,19 @@ describe("CreateAgentDialog — registry selection YAML serialization", () => {
     ];
     modelsState.data = [createModelConfiguration({ id: "model-registry-1", name: "Fast Haiku" })];
     modelsState.isLoading = false;
+    modelsState.isError = false;
+    modelsState.error = undefined;
     agentsState.data = [];
     registryState.data = undefined;
   });
 
-  it("serializes registry prompt (Latest) + catalog model into prompt_ref/model_ref YAML", async () => {
+  it("serializes the registry selection into prompt_ref/model_ref YAML with no inline fields", async () => {
     const user = userEvent.setup();
 
     renderWithProviders(<CreateAgentDialog open onOpenChange={() => {}} />);
 
     await user.type(screen.getByLabelText(/^agent name$/i), "registry-agent");
-    await user.click(screen.getByRole("radio", { name: /registry prompt/i }));
     await chooseOption(user, /^prompt$/i, "support-triage");
-    await user.click(screen.getByRole("radio", { name: /catalog model/i }));
     await chooseOption(user, /^model$/i, "Fast Haiku");
 
     await user.click(screen.getByRole("button", { name: /create agent/i }));
@@ -146,9 +154,14 @@ describe("CreateAgentDialog — registry selection YAML serialization", () => {
 
     expect(doc.prompt_ref).toEqual({ id: "prompt-registry-1" });
     expect(doc.model_ref).toBe("model-registry-1");
-    // Mutually exclusive inline fields cleared from the YAML.
+    // The legacy inline fields are never emitted: the registries are the
+    // only sources (REQ-FORM-001/002).
     expect(doc).not.toHaveProperty("system_prompt");
     expect(doc).not.toHaveProperty("system_prompt_file");
+    expect(doc).not.toHaveProperty("model");
+    // The legacy MCP list stays present but EMPTY — no server definition,
+    // no connection parameter and no secret (review C1).
+    expect(doc.mcp_servers).toEqual([]);
   });
 
   it("pins a version: YAML prompt_ref carries the exact pinned version", async () => {
@@ -157,11 +170,13 @@ describe("CreateAgentDialog — registry selection YAML serialization", () => {
     renderWithProviders(<CreateAgentDialog open onOpenChange={() => {}} />);
 
     await user.type(screen.getByLabelText(/^agent name$/i), "pinned-agent");
-    await user.click(screen.getByRole("radio", { name: /registry prompt/i }));
     await chooseOption(user, /^prompt$/i, "support-triage");
-    await user.click(screen.getByRole("radio", { name: /^pinned$/i }));
+    await user.click(
+      within(screen.getByRole("radiogroup", { name: /version mode/i })).getByRole("radio", {
+        name: /^pinned$/i,
+      }),
+    );
     await chooseOption(user, /^version$/i, "v2");
-    await user.click(screen.getByRole("radio", { name: /catalog model/i }));
     await chooseOption(user, /^model$/i, "Fast Haiku");
 
     await user.click(screen.getByRole("button", { name: /create agent/i }));
@@ -173,53 +188,6 @@ describe("CreateAgentDialog — registry selection YAML serialization", () => {
     expect(doc.prompt_ref).toEqual({ id: "prompt-registry-1", version: 2 });
   });
 
-  it("legacy inline + custom mode keeps system_prompt/model and omits refs", async () => {
-    const user = userEvent.setup();
-
-    renderWithProviders(<CreateAgentDialog open onOpenChange={() => {}} />);
-
-    await user.type(screen.getByLabelText(/^agent name$/i), "legacy-agent");
-    await user.click(screen.getByRole("radio", { name: /inline prompt/i }));
-    await user.type(screen.getByLabelText(/^system prompt$/i), "You are inline.");
-    await user.click(screen.getByRole("radio", { name: /custom model/i }));
-    await user.type(screen.getByLabelText(/^model$/i), "openai:gpt-4o");
-
-    await user.click(screen.getByRole("button", { name: /create agent/i }));
-
-    await waitFor(() => {
-      expect(createAgentMutate).toHaveBeenCalled();
-    });
-    const doc = await lastYamlText();
-
-    expect(doc.system_prompt).toBe("You are inline.");
-    expect(doc.model).toBe("openai:gpt-4o");
-    expect(doc).not.toHaveProperty("prompt_ref");
-    expect(doc).not.toHaveProperty("model_ref");
-  });
-
-  it("mutually exclusive prompt file mode clears system_prompt in YAML", async () => {
-    const user = userEvent.setup();
-
-    renderWithProviders(<CreateAgentDialog open onOpenChange={() => {}} />);
-
-    await user.type(screen.getByLabelText(/^agent name$/i), "file-agent");
-    await user.click(screen.getByRole("radio", { name: /prompt file/i }));
-    await user.type(screen.getByLabelText(/^system prompt file$/i), "/prompts/system.txt");
-    await user.click(screen.getByRole("radio", { name: /custom model/i }));
-    await user.type(screen.getByLabelText(/^model$/i), "openai:gpt-4o");
-
-    await user.click(screen.getByRole("button", { name: /create agent/i }));
-
-    await waitFor(() => {
-      expect(createAgentMutate).toHaveBeenCalled();
-    });
-    const doc = await lastYamlText();
-
-    expect(doc.system_prompt_file).toBe("/prompts/system.txt");
-    expect(doc.system_prompt).toBeUndefined();
-    expect(doc).not.toHaveProperty("prompt_ref");
-  });
-
   it("registry selector failure preserves the draft and surfaces a scoped retry", async () => {
     promptsState.isError = true;
     promptsState.error = new Error("Selectors unavailable");
@@ -228,11 +196,10 @@ describe("CreateAgentDialog — registry selection YAML serialization", () => {
     renderWithProviders(<CreateAgentDialog open onOpenChange={() => {}} />);
 
     await user.type(screen.getByLabelText(/^agent name$/i), "kept-draft");
-    await user.click(screen.getByRole("radio", { name: /registry prompt/i }));
 
-    // The registry-health UI is scoped to the registry branch (I8).
-    const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText(/selectors unavailable/i)).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("dialog")).getByText(/selectors unavailable/i),
+    ).toBeInTheDocument();
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: /retry/i }));
     expect(promptsState.refetch).toHaveBeenCalled();
     expect(screen.getByDisplayValue("kept-draft")).toBeInTheDocument();

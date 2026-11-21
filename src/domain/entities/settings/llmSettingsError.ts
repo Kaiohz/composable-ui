@@ -14,7 +14,13 @@ const LLM_NOT_CONFIGURED_PATTERN = /^\s*no llm provider configured\b/i;
  * this onboarding failure.
  */
 export function isLlmNotConfiguredError(error: unknown): boolean {
-  const message = typeof error === "string" ? error : error instanceof Error ? error.message : null;
+  const message = extractErrorMessage(error);
   if (message === null) return false;
   return LLM_NOT_CONFIGURED_PATTERN.test(message);
+}
+
+function extractErrorMessage(error: unknown): string | null {
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return error.message;
+  return null;
 }

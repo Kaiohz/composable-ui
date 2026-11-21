@@ -12,6 +12,8 @@ interface PillMultiSelectProps {
   onChange?: (selected: string[]) => void;
   emptyMessage?: string;
   readOnly?: boolean;
+  /** Accessible name for the toggle group (screen readers announce it). */
+  ariaLabel?: string;
 }
 
 /**
@@ -27,6 +29,7 @@ export function PillMultiSelect({
   onChange,
   emptyMessage = "No items found",
   readOnly = false,
+  ariaLabel,
 }: Readonly<PillMultiSelectProps>) {
   const selectedSet = new Set(selected);
   const visibleOptions = readOnly ? options.filter((o) => selectedSet.has(o.value)) : options;
@@ -57,6 +60,7 @@ export function PillMultiSelect({
       // Native fieldset gives the group role without an explicit ARIA role
       // (Sonar S6819); Tailwind preflight + the explicit classes below keep
       // the visual identical to the previous plain wrapper.
+      aria-label={ariaLabel}
       className="flex min-w-0 flex-wrap gap-1.5 border-0 p-0 m-0"
     >
       {visibleOptions.map((option) => {

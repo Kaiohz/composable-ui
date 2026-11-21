@@ -122,10 +122,11 @@ export default function AgentConfigViewer({
   }
 
   function handleEditSubmit(data: AgentConfigFormData) {
+    // Resource-only (spec agent-resource-import): the validated data carries
+    // prompt_ref / model_ref / mcp_refs; legacy inline fields are always
+    // absent and the serializer guarantees no inline definitions.
     const configToUpdate: AgentConfig = {
       ...data,
-      system_prompt: data.system_prompt || undefined,
-      system_prompt_file: data.system_prompt_file || undefined,
       response_format: data.response_format || undefined,
     };
 
@@ -496,7 +497,7 @@ function ConfigOverview({
       <SkillsSection skills={config.skills} />
       <MemoriesSection memory={config.memory} />
       <HitlSection rules={config.hitl.rules} />
-      <McpSection servers={config.mcp_servers} />
+      <McpSection servers={config.mcp_servers} refs={config.mcp_refs} />
       <SubagentsSection subagents={config.subagents} />
     </div>
   );
@@ -673,11 +674,22 @@ function formatHitlValue(value: boolean | { before?: boolean; after?: boolean })
   return JSON.stringify(value);
 }
 
-function McpSection({ servers }: Readonly<{ servers: AgentConfig["mcp_servers"] }>) {
-  if (servers.length === 0) return null;
+/**
+ * Saved MCP selection, read-only. Legacy inline definitions (REQ-LEGACY-001)
+ * show their transport tag; references resolved from the MCP Registry
+ * (REQ-MCP-003) show a registry tag. A server appearing in both shapes is
+ * rendered once.
+ */
+function McpSection({
+  servers,
+  refs,
+}: Readonly<{ servers: AgentConfig["mcp_servers"]; refs?: string[] }>) {
+  const serverNames = new Set(servers.map((server) => server.name));
+  const refOnlyNames = (refs ?? []).filter((name) => !serverNames.has(name));
+  if (servers.length === 0 && refOnlyNames.length === 0) return null;
   return (
     <div>
-      <SectionLabel>MCP Servers ({servers.length})</SectionLabel>
+      <SectionLabel>MCP Servers ({servers.length + refOnlyNames.length})</SectionLabel>
       <div className="space-y-2">
         {servers.map((server) => (
           <div
@@ -686,6 +698,15 @@ function McpSection({ servers }: Readonly<{ servers: AgentConfig["mcp_servers"] 
           >
             <span className="font-mono text-sm text-fg">{server.name}</span>
             <ToolTag label={server.transport} />
+          </div>
+        ))}
+        {refOnlyNames.map((name) => (
+          <div
+            key={name}
+            className="flex items-center justify-between border border-border-soft bg-surface-warm p-3"
+          >
+            <span className="font-mono text-sm text-fg">{name}</span>
+            <ToolTag label="registry" />
           </div>
         ))}
       </div>

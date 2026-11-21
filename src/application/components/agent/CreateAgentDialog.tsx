@@ -51,10 +51,11 @@ export default function CreateAgentDialog({
   }
 
   function handleFormSubmit(data: AgentConfigFormData) {
+    // Resource-only (spec agent-resource-import): the validated data already
+    // carries prompt_ref / model_ref / mcp_refs; the legacy inline fields are
+    // always absent and the serializer guarantees no inline definitions.
     const config: AgentConfig = {
       ...data,
-      system_prompt: data.system_prompt || undefined,
-      system_prompt_file: data.system_prompt_file || undefined,
       response_format: data.response_format || undefined,
     };
 

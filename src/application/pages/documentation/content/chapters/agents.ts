@@ -14,7 +14,7 @@ import {
 
 /**
  * DOC-03 — Agents. Purpose, built-in assistant, create/inspect/edit/delete
- * procedures and the functional settings (prompt source, model source, MCP
+ * procedures and the functional settings (prompt and model selection, MCP
  * tools, subagents, memories and skills, human review, response format).
  */
 const agents: DocChapter = {
@@ -68,7 +68,7 @@ const agents: DocChapter = {
       docLink("/documentation/settings", "Settings and Account"),
       txt("), and a "),
       docLink("/documentation/models", "model"),
-      txt(" entry if you want to pick from your catalog instead of typing a model string."),
+      txt(" entry: agents always pick their model from your catalog."),
     ),
 
     sub("Create an agent"),
@@ -95,32 +95,28 @@ const agents: DocChapter = {
       [
         txt("Still in "),
         lbl("General"),
-        txt(", use the "),
-        lbl("Model Source"),
-        txt(" control to choose "),
-        lbl("Catalog model"),
-        txt(" and select a "),
+        txt(", select a "),
         lbl("Model"),
-        txt(" entry from your model catalog, or "),
-        lbl("Custom model"),
-        txt(" and type the provider model string yourself."),
+        txt(" entry from your model catalog. If the dropdown is empty, create the entry in "),
+        docLink("/documentation/models", "Models"),
+        txt(" first."),
       ],
       [
         txt("In "),
         lbl("Prompt Source"),
-        txt(", choose "),
-        lbl("Registry prompt"),
-        txt(" (select a prompt and a version mode), "),
-        lbl("Inline prompt"),
-        txt(" (type the system prompt here), or "),
-        lbl("Prompt file"),
-        txt("."),
+        txt(", select an entry from your Prompt Registry and choose a version mode — "),
+        lbl("Latest"),
+        txt(" or a "),
+        lbl("Pinned"),
+        txt(" version. If the list is empty, create the prompt in "),
+        docLink("/documentation/prompts", "Prompts"),
+        txt(" first."),
       ],
       [
         txt("In "),
         lbl("MCP Servers"),
         txt(
-          ", add the server entries that provide this agent's tools. An agent without MCP servers has no tools.",
+          ", select among the servers registered in your MCP Registry; the agent then reuses their configuration in place. An agent without MCP servers has no tools.",
         ),
       ],
       [
@@ -156,9 +152,7 @@ const agents: DocChapter = {
 
     sub("Latest or pinned prompt version"),
     para(
-      txt("When you select a "),
-      lbl("Registry prompt"),
-      txt(" in the form, choose between two version modes. "),
+      txt("When you select a prompt in the form, choose between two version modes. "),
       lbl("Latest"),
       txt(
         " always follows the newest version of that prompt — edits take effect on the next run without touching the agent. ",
@@ -171,16 +165,12 @@ const agents: DocChapter = {
       txt(")."),
     ),
 
-    sub("Catalog model or custom model string"),
+    sub("Registry-sourced model and prompt"),
     para(
-      txt("A "),
-      lbl("Catalog model"),
+      txt("Selecting a "),
+      lbl("Model"),
       txt(
-        " points at an entry of your model catalog, so provider details stay in one place and the card name stays readable. A ",
-      ),
-      lbl("Custom model"),
-      txt(
-        " is a free-form model identifier used directly; it suits one-off providers you have not catalogued. Entries, never custom strings, are the recommended way to change which model an agent uses later.",
+        " points at an entry of your model catalog, so provider details and secrets stay in one place and change in one place — the agent only keeps a reference to the entry. The same is true for the prompt: the agent keeps a reference into the Prompt Registry, not a copy of the wording. Update the entry or prompt in its own page, and every agent referencing it picks up the change according to its version mode.",
       ),
     ),
 
@@ -201,7 +191,7 @@ const agents: DocChapter = {
         txt(", press "),
         lbl("Edit"),
         txt(
-          " to personalize the editable fields for your account. The name, dynamic toolset, MCP servers and destructive-delete approval rules stay platform-managed. Once saved, the viewer shows a ",
+          " to personalize the editable fields for your account. The name, dynamic toolset and destructive-delete approval rules stay platform-managed; MCP servers are yours to pick from the MCP Registry. Once saved, the viewer shows a ",
         ),
         lbl("customized"),
         txt(" badge and "),
@@ -242,8 +232,8 @@ const agents: DocChapter = {
     example([
       "Agent name     : release-notes-writer",
       "Description    : Writes release notes from merged tickets.",
-      'Model source   : Catalog model → "Fast Haiku"',
-      "Prompt source  : Registry prompt → release-notes, Latest",
+      'Model          : "Fast Haiku" from your catalog',
+      "Prompt         : release-notes from the registry, Latest",
       "MCP servers    : (none)",
       "HITL           : Not required (no tools)",
       "Result         : a read-mostly agent usable in chat and in a cron",
@@ -265,9 +255,12 @@ const agents: DocChapter = {
       [
         txt("The model dropdown is empty — create an entry in "),
         docLink("/documentation/models", "Models"),
-        txt(" first, or switch to "),
-        lbl("Custom model"),
-        txt("."),
+        txt(" first; agent forms only offer catalog entries."),
+      ],
+      [
+        txt("The prompt list is empty — create an entry in "),
+        docLink("/documentation/prompts", "Prompts"),
+        txt(" first; agent forms only offer registry prompts."),
       ],
       [
         lbl("No agents available"),

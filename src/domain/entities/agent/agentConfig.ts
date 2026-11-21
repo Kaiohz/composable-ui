@@ -60,6 +60,14 @@ export interface AgentConfig {
   prompt_name?: string | null;
   catalog_model_name?: string | null;
   catalog_model_provider_model?: string | null;
+  /**
+   * Registered MCP server identities — the resource-only selection
+   * (spec agent-resource-import REQ-MCP-003). The persisted configuration
+   * carries only the names; the runner resolves them against the user's
+   * MCP Registry. When present, inline `mcp_servers` definitions are
+   * never re-serialized.
+   */
+  mcp_refs?: string[];
   tools: string[];
   backend: BackendConfig;
   hitl: HITLConfig;
