@@ -79,11 +79,14 @@ describe("AgentConfigForm", () => {
         <AgentConfigForm mode="create" onSubmit={mockSubmit} onCancel={mockCancel} />,
       );
 
-      // Expand the Backend accordion so the Type Select trigger is rendered.
+      // Expand the Backend accordion so the Checkpoint Backend select is rendered.
       await user.click(screen.getByRole("button", { name: "Backend" }));
 
-      // Act — open the backend type select dropdown.
-      await user.click(screen.getByRole("combobox"));
+      // Act — open the checkpoint select dropdown, scoped to its section
+      // (the resource-only form also renders Model/Prompt selects in the
+      // General accordion).
+      const backendWrapper = screen.getByText(/checkpoint backend/i).closest("div") as HTMLElement;
+      await user.click(within(backendWrapper).getByRole("combobox"));
 
       // Assert — filesystem must not be a selectable option.
       await waitFor(() => {
@@ -98,7 +101,9 @@ describe("AgentConfigForm", () => {
       );
 
       await user.click(screen.getByRole("button", { name: "Backend" }));
-      await user.click(screen.getByRole("combobox"));
+
+      const backendWrapper = screen.getByText(/checkpoint backend/i).closest("div") as HTMLElement;
+      await user.click(within(backendWrapper).getByRole("combobox"));
 
       await waitFor(() => {
         expect(screen.queryByRole("option", { name: "composite" })).not.toBeInTheDocument();
@@ -235,8 +240,12 @@ describe("AgentConfigForm", () => {
       const nameInput = screen.getByLabelText(/agent name/i) as HTMLInputElement;
       expect(nameInput.value).toBe("existing-agent");
 
-      const modelInput = screen.getByLabelText(/^model$/i) as HTMLInputElement;
-      expect(modelInput.value).toBe("openai:gpt-4o");
+      // Resource-only conversion (REQ-LEGACY-002): the legacy inline model
+      // string is NOT presented as a registered resource — the catalog
+      // selector starts on its placeholder.
+      const modelTrigger = screen.getByRole("combobox", { name: /^model$/i });
+      expect(modelTrigger).toHaveTextContent(/select a catalog model/i);
+      expect(modelTrigger).not.toHaveTextContent("openai:gpt-4o");
     });
 
     it("renders update button instead of create in edit mode", () => {
@@ -317,8 +326,13 @@ describe("AgentConfigForm", () => {
         expect(screen.getByText(/add from existing agents/i)).toBeInTheDocument();
       });
 
-      // The picker is the combobox inside the Subagents section.
-      await user.click(screen.getByRole("combobox"));
+      // The picker is the combobox inside the Subagents "Add from existing
+      // agents" control (scoped: the resource-only form also renders the
+      // Model/Prompt selects in the open General accordion).
+      const pickerWrapper = screen
+        .getByText(/add from existing agents/i)
+        .closest("div") as HTMLElement;
+      await user.click(within(pickerWrapper).getByRole("combobox"));
       await user.click(await screen.findByRole("option", { name: /researcher/i }));
 
       // Assert — a SubAgentEditor in reference mode must appear, showing a
@@ -397,13 +411,13 @@ describe("AgentConfigForm", () => {
       expect(screen.queryByText(/add from registry/i)).not.toBeInTheDocument();
       expect(screen.queryByText(/add mcp server/i)).not.toBeInTheDocument();
       expect(screen.queryByText(/select a registered server/i)).not.toBeInTheDocument();
-      // No combobox in the MCP section (the backend/subagent comboboxes live
-      // in other sections that are closed, so none should be present at all).
-      expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+      // No combobox in the MCP section (scoped: the resource-only form also
+      // renders the Model/Prompt selects in the open General accordion).
+      const mcpSection = screen.getByText(/from registry/i).closest("div") as HTMLElement;
+      expect(within(mcpSection).queryByRole("combobox")).not.toBeInTheDocument();
     });
 
-    it("clicking a registry pill reveals and embeds the server (pill becomes active)", async () => {
-      revealMock.mockResolvedValue(registryServers[0]);
+    it("clicking a registry pill activates the selection without embedding the server", async () => {
       const user = userEvent.setup();
       renderWithProviders(
         <AgentConfigForm mode="create" onSubmit={mockSubmit} onCancel={mockCancel} />,
@@ -419,7 +433,9 @@ describe("AgentConfigForm", () => {
       await waitFor(() => {
         expect(pill).toHaveAttribute("aria-pressed", "true");
       });
-      expect(revealMock).toHaveBeenCalledWith("weather");
+      // Resource-only (REQ-MCP-003): the form carries the server's IDENTITY
+      // only — it never reveals and embeds the connection parameters/secrets.
+      expect(revealMock).not.toHaveBeenCalled();
     });
 
     it("clicking an active pill removes the embedded entry", async () => {
@@ -575,7 +591,7 @@ describe("AgentConfigForm", () => {
       is_customized: true,
     };
 
-    it("hides server-managed sections and locks forced HITL rules", async () => {
+    it("hides subagents for the built-in and locks forced HITL rules", async () => {
       const user = userEvent.setup();
       renderWithProviders(
         <AgentConfigForm
@@ -587,7 +603,10 @@ describe("AgentConfigForm", () => {
         />,
       );
 
-      expect(screen.queryByRole("button", { name: /mcp servers/i })).not.toBeInTheDocument();
+      // REQ-BUILTIN-001: the built-in customization exposes the SAME MCP
+      // registry selector as custom agents…
+      expect(screen.getByRole("button", { name: /mcp servers/i })).toBeInTheDocument();
+      // …while inline subagents stay unavailable (REQ-BUILTIN-004).
       expect(screen.queryByRole("button", { name: /subagents/i })).not.toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: /^hitl$/i }));

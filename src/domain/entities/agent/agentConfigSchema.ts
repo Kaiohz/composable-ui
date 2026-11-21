@@ -81,7 +81,22 @@ const agentConfigBaseSchema = z.object({
   memory: z.array(z.string()),
   skills: z.array(z.string()),
   subagents: z.array(subAgentConfigSchema),
-  mcp_servers: z.array(mcpServerConfigSchema),
+  /**
+   * Inline MCP servers. Optional with an empty default since the
+   * resource-only contract (spec agent-resource-import REQ-MCP-003): a
+   * reference-only document carries `mcp_refs` and MAY omit the legacy list
+   * entirely (a legacy document keeps its inline list). The serializers
+   * still emit an explicit empty list so every produced document satisfies
+   * the mandatory-key backend mirrors as well.
+   */
+  mcp_servers: z.array(mcpServerConfigSchema).optional().default([]),
+  /**
+   * Registered-server identities — resource-only MCP selection
+   * (spec agent-resource-import REQ-MCP-003). Identities are the REGISTRY
+   * SERVER NAMES (not UUIDs): the runner resolves them against the user's
+   * MCP Registry.
+   */
+  mcp_refs: z.array(z.string()).optional(),
   response_format: z.record(z.string(), z.unknown()).nullable().optional(),
   debug: z.boolean(),
 });
@@ -142,14 +157,14 @@ function validatePromptFieldExclusivity(ctx: z.RefinementCtx, values: PromptSour
   }
 }
 
-function validateModelRef(
-  config: AgentConfigBase,
-  ctx: z.RefinementCtx,
-  enforceUuid: boolean,
-): void {
+/**
+ * YAML-document rule (REQ-LEGACY-001): a legacy document must carry a model
+ * in some form — the legacy inline string or the catalog `model_ref`.
+ */
+function validateLegacyModelPresence(config: AgentConfigBase, ctx: z.RefinementCtx): void {
   const modelRef = config.model_ref;
   if (modelRef) {
-    if (enforceUuid && !UUID_PATTERN.test(modelRef)) {
+    if (!UUID_PATTERN.test(modelRef)) {
       ctx.addIssue({
         code: "custom",
         path: ["model_ref"],
@@ -171,6 +186,7 @@ function refineAgentConfig(
   config: AgentConfigBase,
   ctx: z.RefinementCtx,
   enforceUuid: boolean,
+  requireResourceRefs: boolean,
 ): void {
   const values: PromptSourceValues = {
     prompt: isPresent(config.system_prompt) ? String(config.system_prompt) : undefined,
@@ -180,22 +196,67 @@ function refineAgentConfig(
   };
   validatePromptRef(config, ctx, values, enforceUuid);
   validatePromptFieldExclusivity(ctx, values);
-  validateModelRef(config, ctx, enforceUuid);
+  if (enforceUuid) {
+    validateLegacyModelPresence(config, ctx);
+  }
+  if (requireResourceRefs) {
+    validateRequiredResourceRefs(config, ctx);
+  }
 }
 
 /** Full strict schema used for YAML parsing and payload validation. */
 export const agentConfigSchema = agentConfigBaseSchema.strict().superRefine((config, ctx) => {
-  refineAgentConfig(config, ctx, true);
+  refineAgentConfig(config, ctx, true, false);
 });
 
 /**
- * Form-level schema: identical rules except the UUID format checks, which
- * the server authoritatively enforces (spec §AGT-004.8). Registry fixture
- * ids are opaque strings at the UI boundary.
+ * Resource-only form requirements (spec agent-resource-import REQ-FORM-005):
+ * a manual save must carry a catalog model reference and a registry prompt
+ * reference. Inline legacy drafts are cleared by the form before validation,
+ * so they can never satisfy this rule (REQ-LEGACY-002). The built-in
+ * customization is exempt (REQ-BUILTIN-005): without a selection it keeps
+ * its platform defaults.
  */
-export const agentConfigFormSchema = agentConfigBaseSchema.strict().superRefine((config, ctx) => {
-  refineAgentConfig(config, ctx, false);
-});
+function validateRequiredResourceRefs(config: AgentConfigBase, ctx: z.RefinementCtx): void {
+  if (!config.model_ref) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["model"],
+      message: "Model is required when no catalog model_ref is provided",
+    });
+  }
+  if (!config.prompt_ref) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["prompt_ref"],
+      message: "Prompt is required when no registry prompt_ref is provided",
+    });
+  }
+}
 
-export type AgentConfigFormData = z.infer<typeof agentConfigSchema>;
+export interface AgentConfigFormSchemaOptions {
+  /**
+   * Whether a save must carry registered model/prompt references
+   * (REQ-FORM-005). Only the built-in customization passes `false`
+   * (REQ-BUILTIN-005).
+   */
+  readonly requireResourceRefs: boolean;
+}
+
+/**
+ * Form-level schema factory: identical rules except the UUID format checks,
+ * which the server authoritatively enforces (spec §AGT-004.8). Registry
+ * fixture ids are opaque strings at the UI boundary. The built-in
+ * customization builds the variant that does not force resource selections
+ * (REQ-BUILTIN-005).
+ */
+export function buildAgentConfigFormSchema(options: AgentConfigFormSchemaOptions) {
+  return agentConfigBaseSchema.strict().superRefine((config, ctx) => {
+    refineAgentConfig(config, ctx, false, options.requireResourceRefs);
+  });
+}
+
 export type AgentConfigFormInput = z.input<typeof agentConfigSchema>;
+
+/** The form-validated output shape, derived from the form factory itself. */
+export type AgentConfigFormData = z.infer<ReturnType<typeof buildAgentConfigFormSchema>>;

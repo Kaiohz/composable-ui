@@ -118,10 +118,8 @@ const models: DocChapter = {
       ),
       docLink("/documentation/agents", "Agents"),
       txt(
-        ", search for agents whose model source is this entry, re-point them to another entry or switch them to a ",
+        ", search for agents whose model is this entry, re-point them to another entry, then delete afterwards.",
       ),
-      lbl("Custom model"),
-      txt(", then delete afterwards."),
     ),
 
     sub("Practical example"),

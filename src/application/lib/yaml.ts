@@ -1,6 +1,10 @@
 import yaml from "js-yaml";
 import type { AgentConfig } from "@/domain/entities/agent/agentConfig";
 import { agentConfigSchema } from "@/domain/entities/agent/agentConfigSchema";
+import {
+  redactMcpServerForExport,
+  resolveMcpExportSelection,
+} from "@/domain/entities/agent/agentMcpSecrets";
 
 type PlainRecord = Record<string, unknown>;
 
@@ -10,7 +14,11 @@ function cleanSubagent(sub: AgentConfig["subagents"][number]): PlainRecord {
     description: sub.description,
     tools: sub.tools,
     skills: sub.skills,
-    mcp_servers: sub.mcp_servers,
+    // A subagent's inline MCP servers are credentials too: the SAME
+    // domain-owned redaction rule as the top-level path applies — no
+    // `auth_token`, no secret-bearing header, no credential env entry ever
+    // reaches an exported file (REQ-LEGACY-004, review C3).
+    mcp_servers: sub.mcp_servers.map(redactMcpServerForExport),
   };
 
   if (sub.agent_ref) result.agent_ref = sub.agent_ref;
@@ -19,22 +27,6 @@ function cleanSubagent(sub: AgentConfig["subagents"][number]): PlainRecord {
   if (sub.response_format && Object.keys(sub.response_format).length > 0) {
     result.response_format = sub.response_format;
   }
-
-  return result;
-}
-
-function cleanMcpServer(server: AgentConfig["mcp_servers"][number]): PlainRecord {
-  const result: PlainRecord = {
-    name: server.name,
-    transport: server.transport,
-    args: server.args,
-    headers: server.headers,
-    env: server.env,
-  };
-
-  if (server.command) result.command = server.command;
-  if (server.url) result.url = server.url;
-  if (server.auth_token) result.auth_token = server.auth_token;
 
   return result;
 }
@@ -57,7 +49,6 @@ export function serializeAgentConfig(config: AgentConfig): string {
     memory: config.memory,
     skills: config.skills,
     subagents: config.subagents.map(cleanSubagent),
-    mcp_servers: config.mcp_servers.map(cleanMcpServer),
     debug: config.debug,
   };
 
@@ -77,6 +68,20 @@ export function serializeAgentConfig(config: AgentConfig): string {
     clean.model_ref = config.model_ref;
   } else if (config.model) {
     clean.model = config.model;
+  }
+
+  // BUG-001: the LEGACY-inline vs resource-only discrimination is a domain
+  // rule (resolveMcpExportSelection) — the discriminator is the presence of
+  // inline DEFINITIONS, never the presence of `mcp_refs`, because the
+  // backend returns `mcp_refs` as a list for every agent (legacy documents
+  // included). Exported shape: redacted inline definitions when no
+  // registered selection exists, the reference identities otherwise (the
+  // inline list stays explicitly EMPTY so every produced document keeps
+  // satisfying the mandatory-key contract mirrors and round-trips).
+  const mcpExport = resolveMcpExportSelection(config.mcp_refs, config.mcp_servers);
+  clean.mcp_servers = mcpExport.mcp_servers;
+  if (mcpExport.mcp_refs != null) {
+    clean.mcp_refs = mcpExport.mcp_refs;
   }
 
   if (config.description) {
