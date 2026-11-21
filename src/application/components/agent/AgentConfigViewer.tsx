@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Download, Pencil, Trash2 } from "lucide-react";
+import { Download, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { useAgentConfig } from "@/application/hooks/agent/useAgentConfig";
 import { isBuiltinAgent } from "@/domain/entities/agent/agentConfigMetadata";
 import { useUpdateAgent } from "@/application/hooks/agent/useUpdateAgent";
 import { useDeleteAgent } from "@/application/hooks/agent/useDeleteAgent";
+import { useResetBuiltinCustomization } from "@/application/hooks/agent/useResetBuiltinCustomization";
 import { usePrompts } from "@/application/hooks/prompt/usePrompts";
 import { useModels } from "@/application/hooks/model/useModels";
 import { serializeAgentConfig, agentConfigToYamlFile } from "@/application/lib/yaml";
@@ -33,6 +34,16 @@ interface AgentConfigViewerProps {
   readonly onOpenChange: (open: boolean) => void;
 }
 
+function viewerDescription(mode: "view" | "edit", isBuiltin: boolean): string {
+  if (mode === "edit") {
+    return "Edit the agent configuration below, then save your changes.";
+  }
+  if (isBuiltin) {
+    return "View your effective built-in assistant. Personalize the editable fields with Edit, or reset to the platform default.";
+  }
+  return "View the agent configuration. Use Edit to modify or Export to download YAML.";
+}
+
 export default function AgentConfigViewer({
   agentName,
   open,
@@ -41,6 +52,7 @@ export default function AgentConfigViewer({
   const { data: config, isLoading, error } = useAgentConfig(open ? agentName : null);
   const updateAgent = useUpdateAgent();
   const deleteAgent = useDeleteAgent();
+  const resetBuiltinCustomization = useResetBuiltinCustomization();
   const {
     data: promptRegistry,
     isLoading: promptRegistryLoading,
@@ -54,15 +66,16 @@ export default function AgentConfigViewer({
     refetch: refetchModels,
   } = useModels();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   const [mode, setMode] = useState<"view" | "edit">("view");
   /**
-   * Read-only built-in assistant (spec feat-composable-mcp.md §REQ-046 and
-   * §REQ-034): its name is reserved, so the name alone is authoritative even
-   * before metadata loads. The definition stays readable while Edit/Delete
-   * are unavailable and Export is hidden — dynamic all-tool resolution is
-   * not reproduced by an exported YAML snapshot.
+   * Built-in assistant (spec feat-composable-mcp.md §REQ-031/§REQ-034): its
+   * name is reserved, deletion is unavailable and its dynamic toolset stays
+   * platform-managed. Each user can still personalize the editable fields;
+   * `is_customized` reports whether a personal override is active.
    */
   const isBuiltin = isBuiltinAgent(agentName);
+  const isCustomized = Boolean(config?.is_customized);
 
   if (!open) return null;
 
@@ -80,6 +93,29 @@ export default function AgentConfigViewer({
       onError: (error) => {
         toast.error(error.message);
         setConfirmDelete(false);
+      },
+    });
+  }
+
+  function openEdit() {
+    setConfirmDelete(false);
+    setConfirmReset(false);
+    setMode("edit");
+  }
+
+  function handleReset() {
+    if (!confirmReset) {
+      setConfirmReset(true);
+      return;
+    }
+    resetBuiltinCustomization.mutate(agentName, {
+      onSuccess: () => {
+        toast.success("Built-in assistant reset to its default definition");
+        setConfirmReset(false);
+      },
+      onError: (error) => {
+        toast.error(error.message);
+        setConfirmReset(false);
       },
     });
   }
@@ -124,6 +160,7 @@ export default function AgentConfigViewer({
   function handleClose() {
     setMode("view");
     setConfirmDelete(false);
+    setConfirmReset(false);
     onOpenChange(false);
   }
 
@@ -137,13 +174,16 @@ export default function AgentConfigViewer({
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden p-0 sm:p-0">
         <div className="shrink-0 border-b border-border bg-surface px-6 pb-4 pt-6 sm:px-8">
           <DialogHeader className="space-y-1.5">
-            <DialogTitle className="font-display text-lg">{agentName}</DialogTitle>
+            <div className="flex items-center gap-2">
+              <DialogTitle className="font-display text-lg">{agentName}</DialogTitle>
+              {isBuiltin && isCustomized && (
+                <Badge variant="accent" data-od-id="builtin-customized-badge">
+                  customized
+                </Badge>
+              )}
+            </div>
             <DialogDescription className="text-sm text-muted">
-              {mode === "edit"
-                ? "Edit the agent configuration below, then save your changes."
-                : isBuiltin
-                  ? "View the built-in agent configuration. This definition is managed by Composable and is read-only."
-                  : "View the agent configuration. Use Edit to modify or Export to download YAML."}
+              {viewerDescription(mode, isBuiltin)}
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -164,6 +204,7 @@ export default function AgentConfigViewer({
           onToggleMode={() => setMode("view")}
           onSubmit={handleEditSubmit}
           isPending={updateAgent.isPending}
+          isBuiltin={isBuiltin}
         />
 
         {mode === "view" && !isBuiltin && (
@@ -172,14 +213,19 @@ export default function AgentConfigViewer({
             confirmDelete={confirmDelete}
             isPending={deleteAgent.isPending}
             onExportYaml={handleExportYaml}
-            onEdit={() => setMode("edit")}
+            onEdit={openEdit}
             onDelete={handleDelete}
           />
         )}
-        {mode === "view" && isBuiltin && !config && !isLoading && !error && (
-          <p className="shrink-0 border-t border-border bg-surface px-6 py-4 font-mono text-xs text-muted sm:px-8">
-            Read-only agent — no mutable configuration is available.
-          </p>
+        {mode === "view" && isBuiltin && (
+          <BuiltinViewerFooter
+            configPresent={config != null}
+            isCustomized={isCustomized}
+            confirmReset={confirmReset}
+            isPending={resetBuiltinCustomization.isPending}
+            onEdit={openEdit}
+            onReset={handleReset}
+          />
         )}
       </DialogContent>
     </Dialog>
@@ -202,6 +248,7 @@ interface ViewerBodyProps {
   readonly onToggleMode: () => void;
   readonly onSubmit: (data: AgentConfigFormData) => void;
   readonly isPending: boolean;
+  readonly isBuiltin: boolean;
 }
 
 function ViewerBody({
@@ -220,6 +267,7 @@ function ViewerBody({
   onToggleMode,
   onSubmit,
   isPending,
+  isBuiltin,
 }: Readonly<ViewerBodyProps>) {
   if (mode === "edit" && config) {
     return (
@@ -230,6 +278,7 @@ function ViewerBody({
           onSubmit={onSubmit}
           onCancel={onToggleMode}
           isPending={isPending}
+          isBuiltin={isBuiltin}
         />
         <div className="mt-4 flex items-center gap-3 border-t border-border-soft pt-4 lg:hidden">
           <Button type="submit" form={AGENT_CONFIG_FORM_ID} disabled={isPending} className="flex-1">
@@ -267,6 +316,48 @@ function ViewerBody({
         />
       )}
     </ScrollArea>
+  );
+}
+
+interface BuiltinViewerFooterProps {
+  readonly configPresent: boolean;
+  readonly isCustomized: boolean;
+  readonly confirmReset: boolean;
+  readonly isPending: boolean;
+  readonly onEdit: () => void;
+  readonly onReset: () => void;
+}
+
+function BuiltinViewerFooter({
+  configPresent,
+  isCustomized,
+  confirmReset,
+  isPending,
+  onEdit,
+  onReset,
+}: Readonly<BuiltinViewerFooterProps>) {
+  return (
+    <div className="shrink-0 border-t border-border bg-surface px-6 py-4 sm:px-8">
+      <div className="flex items-center gap-3">
+        <Button type="button" variant="default" onClick={onEdit} disabled={!configPresent}>
+          <Pencil className="h-4 w-4" aria-hidden="true" />
+          <span className="hidden sm:inline">Edit</span>
+          <span className="sm:hidden">Edit</span>
+        </Button>
+        {isCustomized && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onReset}
+            disabled={isPending}
+            data-od-id="builtin-reset-customization"
+          >
+            <RotateCcw className="h-4 w-4" aria-hidden="true" />
+            {confirmReset ? "Confirm Reset?" : "Reset to Default"}
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }
 

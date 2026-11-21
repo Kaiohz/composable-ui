@@ -5,7 +5,7 @@ React frontend for interacting with the [composable-agents](https://github.com/s
 ## Features
 
 - **Agent management** — Create, view, configure, and delete agents via YAML file upload
-- **Built-in assistant first** — `composable-ai-assistant` is overlaid into every user's catalog with a `built-in` badge. Its definition is read-only in the UI and it does not bypass the manual New Conversation chooser.
+- **Built-in assistant first** — `composable-ai-assistant` is overlaid into every user's catalog with a `built-in` badge. Each user can personalize its editable fields with Edit and restore the platform default with Reset to Default; deletion stays unavailable and the assistant does not bypass the manual New Conversation chooser.
 - **MCP thread source badge** — Thread sidebar, chat header/history, trace list, and trace detail render `CHAT`, `CRON`, or the new `MCP` source value. One-shot MCP executions produce `MCP` threads.
 - **LLM onboarding surface** — A missing per-user LLM configuration is surfaced as a clear, actionable error with a direct link to `/settings`.
 - **Prompts registry UI** — `/prompts` manage the local per-user prompt registry: list/create/edit metadata, view immutable numeric version history, add new content versions (`New Version` action), read any version's verbatim content, and delete an unreferenced prompt (in-use prompts surface a `409 Conflict` without losing the current view or the dialog state).

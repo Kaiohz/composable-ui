@@ -42,4 +42,8 @@ export const agentApi: IAgentPort = {
   async deleteAgent(name: string): Promise<void> {
     await apiClient.delete(`/api/v1/agents/${encodeURIComponent(name)}`);
   },
+
+  async resetBuiltinCustomization(name: string): Promise<void> {
+    await apiClient.delete(`/api/v1/agents/${encodeURIComponent(name)}/customization`);
+  },
 };

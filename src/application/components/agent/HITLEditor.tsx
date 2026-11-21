@@ -10,9 +10,15 @@ type RuleValue = boolean | { before?: boolean; after?: boolean };
 interface HITLEditorProps {
   value: Record<string, RuleValue>;
   onChange: (value: Record<string, RuleValue>) => void;
+  /** Rule names managed by the server; they cannot be toggled or removed. */
+  lockedKeys?: readonly string[];
 }
 
-export default function HITLEditor({ value, onChange }: Readonly<HITLEditorProps>) {
+export default function HITLEditor({
+  value,
+  onChange,
+  lockedKeys = [],
+}: Readonly<HITLEditorProps>) {
   const [ruleName, setRuleName] = useState("");
   const inputId = useId();
   const entries = Object.entries(value);
@@ -63,10 +69,19 @@ export default function HITLEditor({ value, onChange }: Readonly<HITLEditorProps
         >
           <span className="font-mono text-xs text-fg">{key}</span>
           <div className="flex-1" />
+          {lockedKeys.includes(key) && (
+            <span className="font-mono text-xs text-muted" title="Managed by the platform">
+              Required
+            </span>
+          )}
           {typeof val === "boolean" ? (
             <div className="flex items-center gap-2">
               <Label className="text-xs text-muted">Enabled</Label>
-              <Switch checked={val} onCheckedChange={(v) => updateRule(key, v)} />
+              <Switch
+                checked={val}
+                onCheckedChange={(v) => updateRule(key, v)}
+                disabled={lockedKeys.includes(key)}
+              />
             </div>
           ) : (
             <div className="flex items-center gap-4">
@@ -75,6 +90,7 @@ export default function HITLEditor({ value, onChange }: Readonly<HITLEditorProps
                 <Switch
                   checked={val.before ?? false}
                   onCheckedChange={(v) => updateRule(key, { ...val, before: v })}
+                  disabled={lockedKeys.includes(key)}
                 />
               </div>
               <div className="flex items-center gap-1">
@@ -82,20 +98,23 @@ export default function HITLEditor({ value, onChange }: Readonly<HITLEditorProps
                 <Switch
                   checked={val.after ?? false}
                   onCheckedChange={(v) => updateRule(key, { ...val, after: v })}
+                  disabled={lockedKeys.includes(key)}
                 />
               </div>
             </div>
           )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => removeRule(key)}
-            aria-label={`Remove ${key}`}
-            className="h-7 w-7"
-          >
-            <X className="h-3 w-3" aria-hidden="true" />
-          </Button>
+          {!lockedKeys.includes(key) && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => removeRule(key)}
+              aria-label={`Remove ${key}`}
+              className="h-7 w-7"
+            >
+              <X className="h-3 w-3" aria-hidden="true" />
+            </Button>
+          )}
         </div>
       ))}
       {entries.length === 0 && (

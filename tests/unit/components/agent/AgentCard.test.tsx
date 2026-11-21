@@ -44,4 +44,17 @@ describe("AgentCard", () => {
     // "Active" or "Standby" text should be rendered anywhere in the card.
     expect(screen.queryByText(/^(active|standby)$/i)).toBeNull();
   });
+
+  it("calls onDelete when the delete icon is clicked", async () => {
+    const user = userEvent.setup();
+    const agent = createAgentConfigMetadata({ name: "my-agent" });
+    const onDelete = vi.fn();
+
+    renderWithProviders(<AgentCard agent={agent} onConfigure={vi.fn()} onDelete={onDelete} />);
+
+    await user.click(screen.getByRole("button", { name: /delete my-agent/i }));
+
+    expect(onDelete).toHaveBeenCalledOnce();
+    expect(onDelete).toHaveBeenCalledWith("my-agent");
+  });
 });

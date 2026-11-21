@@ -3,6 +3,7 @@ import { useForm, useFieldArray, useWatch, type Control } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { AgentConfig, SubAgentConfig } from "@/domain/entities/agent/agentConfig";
 import { BackendType } from "@/domain/entities/agent/agentConfig";
+import { BUILTIN_FORCED_HITL_TOOLS } from "@/domain/entities/agent/agentConfigMetadata";
 import { McpTransportType } from "@/domain/entities/agent/mcpServerConfig";
 import type { McpServerConfig } from "@/domain/entities/agent/mcpServerConfig";
 import {
@@ -167,9 +168,14 @@ function getDefaultValues(
   initialData?: AgentConfig,
 ): AgentConfigFormInput {
   if (mode === "edit" && initialData) {
+    const editableData = { ...initialData };
+    // Overlay-computed markers are response metadata, not form fields; the
+    // strict Zod form schema would otherwise reject them as unknown keys.
+    delete editableData.is_builtin;
+    delete editableData.is_customized;
     return {
       ...DEFAULT_FORM_VALUES,
-      ...initialData,
+      ...editableData,
       model: initialData.model ?? "",
       system_prompt: initialData.system_prompt ?? "",
       system_prompt_file: initialData.system_prompt_file ?? "",
@@ -187,6 +193,8 @@ interface AgentConfigFormProps {
   onSubmit: (data: AgentConfigFormData) => void;
   onCancel: () => void;
   isPending?: boolean;
+  /** Built-in mode hides server-managed sections and locks the HITL floor. */
+  isBuiltin?: boolean;
 }
 
 export default function AgentConfigForm({
@@ -195,6 +203,7 @@ export default function AgentConfigForm({
   onSubmit,
   onCancel,
   isPending = false,
+  isBuiltin = false,
 }: Readonly<AgentConfigFormProps>) {
   const [sourceState, setSourceState] = useState<SourceModeState>(() =>
     deriveSourceModeState(initialData),
@@ -562,6 +571,7 @@ export default function AgentConfigForm({
             <HITLEditor
               value={useWatch({ control, name: "hitl.rules" })}
               onChange={(rules) => setValue("hitl.rules", rules)}
+              lockedKeys={isBuiltin ? BUILTIN_FORCED_HITL_TOOLS : []}
             />
           </AccordionContent>
         </AccordionItem>
@@ -586,49 +596,53 @@ export default function AgentConfigForm({
           </AccordionContent>
         </AccordionItem>
 
-        <McpServersAccordionItem control={control} defaultValue={DEFAULT_OPEN_SECTIONS} />
+        {!isBuiltin && (
+          <McpServersAccordionItem control={control} defaultValue={DEFAULT_OPEN_SECTIONS} />
+        )}
 
-        <AccordionItem value="subagents">
-          <SectionTrigger value="subagents" />
-          <AccordionContent className="space-y-4">
-            {(existingAgents ?? []).length > 0 && (
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-[0.1em] text-muted">
-                  Add from existing agents
-                </Label>
-                <Select value="" onValueChange={(v) => addFromExistingAgent(v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select an existing agent…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(existingAgents ?? [])
-                      .filter(
-                        (agent) =>
-                          agent.name !== currentAgentName &&
-                          !subagentsArray.fields.some(
-                            (s) => (s as unknown as SubAgentConfig).agent_ref === agent.name,
-                          ),
-                      )
-                      .map((agent) => (
-                        <SelectItem key={agent.name} value={agent.name}>
-                          {agent.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            {subagentsArray.fields.map((field, index) => (
-              <SubAgentEditor
-                key={field.id}
-                index={index}
-                value={field as unknown as SubAgentConfig}
-                onChange={(v) => subagentsArray.update(index, v)}
-                onRemove={() => subagentsArray.remove(index)}
-              />
-            ))}
-          </AccordionContent>
-        </AccordionItem>
+        {!isBuiltin && (
+          <AccordionItem value="subagents">
+            <SectionTrigger value="subagents" />
+            <AccordionContent className="space-y-4">
+              {(existingAgents ?? []).length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-[0.1em] text-muted">
+                    Add from existing agents
+                  </Label>
+                  <Select value="" onValueChange={(v) => addFromExistingAgent(v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select an existing agent…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(existingAgents ?? [])
+                        .filter(
+                          (agent) =>
+                            agent.name !== currentAgentName &&
+                            !subagentsArray.fields.some(
+                              (s) => (s as unknown as SubAgentConfig).agent_ref === agent.name,
+                            ),
+                        )
+                        .map((agent) => (
+                          <SelectItem key={agent.name} value={agent.name}>
+                            {agent.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {subagentsArray.fields.map((field, index) => (
+                <SubAgentEditor
+                  key={field.id}
+                  index={index}
+                  value={field as unknown as SubAgentConfig}
+                  onChange={(v) => subagentsArray.update(index, v)}
+                  onRemove={() => subagentsArray.remove(index)}
+                />
+              ))}
+            </AccordionContent>
+          </AccordionItem>
+        )}
 
         <AccordionItem value="response-format">
           <SectionTrigger value="response-format" />
