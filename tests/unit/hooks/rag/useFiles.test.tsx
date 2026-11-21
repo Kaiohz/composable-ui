@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { useFiles } from "@/application/hooks/rag/useFiles";
 import { ragApi } from "@/infrastructure/api/rag/ragApi";
+import { FileEntry } from "@/domain/entities/rag/fileEntry";
 import type { ReactNode } from "react";
 
 vi.mock("@/infrastructure/api/rag/ragApi", () => ({
@@ -28,13 +29,13 @@ describe("useFiles", () => {
 
   it("returns file list on success", async () => {
     const files = [
-      {
+      new FileEntry({
         objectName: "readme.md",
         size: 500,
         lastModified: "2026-04-06T10:00:00Z",
-      },
+      }),
     ];
-    vi.mocked(ragApi.listFiles).mockResolvedValue(files as any);
+    vi.mocked(ragApi.listFiles).mockResolvedValue(files);
 
     const { result } = renderHook(() => useFiles("docs/"), {
       wrapper: createWrapper(),

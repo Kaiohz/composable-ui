@@ -363,7 +363,7 @@ describe("PromptsPage", () => {
     const user = userEvent.setup();
 
     renderPromptsPage();
-    await cardButton(user, "draft-scratch", /^delete$/i);
+    await cardButton(user, "draft-scratch", /^delete draft-scratch$/i);
     // Destructive confirmation (existing confirm-delete pattern).
     await user.click(screen.getByRole("button", { name: /confirm delete/i }));
 
@@ -392,7 +392,9 @@ describe("PromptsPage", () => {
     expect(
       within(siblingCard).getByRole("button", { name: /version history/i }),
     ).toBeInTheDocument();
-    expect(within(siblingCard).getByRole("button", { name: /^delete$/i })).toBeInTheDocument();
+    expect(
+      within(siblingCard).getByRole("button", { name: /^delete release-notes$/i }),
+    ).toBeInTheDocument();
 
     // Delete from within the open version-history view — the query is
     // scoped to the dialog container (card actions are on screen again).

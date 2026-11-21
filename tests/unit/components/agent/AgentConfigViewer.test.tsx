@@ -591,7 +591,9 @@ describe("AgentConfigViewer", () => {
     const description = screen.getByLabelText(/^description$/i);
     await user.clear(description);
     await user.type(description, "My personal assistant");
-    await user.click(screen.getByRole("button", { name: /^update$/i }));
+    // Edit mode owns ONE action set — the pinned Cancel/Save Changes footer
+    // (review C1 removed the duplicate "Update" submit row).
+    await user.click(screen.getByRole("button", { name: /^save changes$/i }));
 
     expect(mockUpdateMutate).toHaveBeenCalledWith(
       expect.objectContaining({ name: "composable-ai-assistant" }),

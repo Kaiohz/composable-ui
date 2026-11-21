@@ -21,8 +21,8 @@ describe("useSettingsStore", () => {
     expect(state.theme).toBe("dark");
     // llmProvider/apiKey were migrated to the backend (PUT /api/v1/settings/llm)
     // and are no longer part of the localStorage settings store.
-    expect((state as any).llmProvider).toBeUndefined();
-    expect((state as any).apiKey).toBeUndefined();
+    expect((state as unknown as Record<string, unknown>).llmProvider).toBeUndefined();
+    expect((state as unknown as Record<string, unknown>).apiKey).toBeUndefined();
   });
 
   it("setAccent updates state and applies the --accent CSS variable on documentElement", () => {
@@ -53,12 +53,16 @@ describe("useSettingsStore", () => {
   it("setLlmProvider was removed — LLM provider is now backend-persisted (skipped)", () => {
     // No-op: setLlmProvider was removed when LLM settings moved to the backend.
     // The hook useLlmSettings now owns provider persistence.
-    expect((useSettingsStore.getState() as any).setLlmProvider).toBeUndefined();
+    expect(
+      (useSettingsStore.getState() as unknown as Record<string, unknown>).setLlmProvider,
+    ).toBeUndefined();
   });
 
   it("setApiKey was removed — API key is now backend-persisted (skipped)", () => {
-    // No-op: setApiKey was removed when LLM settings moved to the backend.
-    expect((useSettingsStore.getState() as any).setApiKey).toBeUndefined();
+    // No-op: setApiKey was removed when API key moved to the backend.
+    expect(
+      (useSettingsStore.getState() as unknown as Record<string, unknown>).setApiKey,
+    ).toBeUndefined();
   });
 
   it("setTheme('light') updates state, removes 'dark' class, and persists to localStorage", () => {
@@ -126,8 +130,8 @@ describe("useSettingsStore", () => {
     expect(state.chatFontFamily).toBe(FONT_DEFAULT);
     expect(state.theme).toBe("dark");
     // llmProvider/apiKey no longer in the store (backend-persisted).
-    expect((state as any).llmProvider).toBeUndefined();
-    expect((state as any).apiKey).toBeUndefined();
+    expect((state as unknown as Record<string, unknown>).llmProvider).toBeUndefined();
+    expect((state as unknown as Record<string, unknown>).apiKey).toBeUndefined();
 
     // Side effects re-applied.
     expect(document.documentElement.classList.contains("dark")).toBe(true);

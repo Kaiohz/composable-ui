@@ -411,7 +411,7 @@ describe("CronsPage", () => {
     const user = userEvent.setup();
 
     renderWithProviders(<CronsPage />, { initialEntries: ["/crons"] });
-    await cronButton(user, "obsolete-job", /^delete$/i);
+    await cronButton(user, "obsolete-job", /^delete obsolete-job$/i);
     await user.click(screen.getByRole("button", { name: /confirm delete/i }));
 
     expect(deleteCronMutate).toHaveBeenCalledWith(

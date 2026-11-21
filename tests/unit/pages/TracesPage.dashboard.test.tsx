@@ -44,8 +44,7 @@ const { usageState, topRunsState, agentsState, tracesState, threadHistoryState }
   () => ({
     usageState: {
       params: undefined as
-        | { agentName?: string; modelName?: string; from?: string; to?: string }
-        | undefined,
+        { agentName?: string; modelName?: string; from?: string; to?: string } | undefined,
       data: undefined as LlmUsageSummary | undefined,
       isLoading: false,
       isError: false,

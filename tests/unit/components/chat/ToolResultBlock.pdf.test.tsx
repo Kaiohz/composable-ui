@@ -240,8 +240,7 @@ describe("ToolResultBlock — create_pdf actions (REQ-077/078)", () => {
     const blob = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls[0][0] as Blob;
     expect(blob.type).toBe("application/pdf");
     const anchor = createElementSpy.mock.results.find((r) => r.value?.tagName === "A")?.value as
-      | HTMLAnchorElement
-      | undefined;
+      HTMLAnchorElement | undefined;
     expect(anchor).toBeTruthy();
     expect(anchor?.download).toBe("rapport.pdf");
   });
