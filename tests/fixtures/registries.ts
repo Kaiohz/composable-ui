@@ -34,12 +34,16 @@ export interface PromptVersion extends PromptVersionSummary {
   content: string;
 }
 
+/**
+ * Model catalog contract (model-catalog-settings-only.md §B): a Model
+ * resource carries ONLY its identity — `id`, `name`, `provider_model`
+ * and timestamps. The provider connection (`provider`, `base_url`, `api_key`)
+ * is owned exclusively by the user's LLM Settings, never by a Model.
+ */
 export interface ModelConfiguration {
   id: string;
   name: string;
-  provider: string;
   provider_model: string;
-  base_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -131,9 +135,7 @@ export function createModelConfiguration(
   return {
     id: "22222222-2222-4222-8222-222222222222",
     name: "Fast Haiku",
-    provider: "openai",
     provider_model: "anthropic/claude-haiku-4.5",
-    base_url: "https://api.example.com/v1",
     created_at: "2026-11-01T10:00:00Z",
     updated_at: "2026-11-10T10:00:00Z",
     ...overrides,

@@ -58,7 +58,7 @@ describe("model hooks", () => {
     expect(result.current.data).toEqual(catalog);
   });
 
-  it("useCreateModel posts the metadata-only payload and invalidates the catalog", async () => {
+  it("useCreateModel posts the identity-only payload and invalidates the catalog", async () => {
     const created = createModelConfiguration();
     vi.mocked(modelApi.createModel).mockResolvedValue(created);
 
@@ -69,18 +69,14 @@ describe("model hooks", () => {
     act(() => {
       result.current.mutate({
         name: "Fast Haiku",
-        provider: "openai",
         provider_model: "anthropic/claude-haiku-4.5",
-        base_url: null,
       });
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(modelApi.createModel).toHaveBeenCalledWith({
       name: "Fast Haiku",
-      provider: "openai",
       provider_model: "anthropic/claude-haiku-4.5",
-      base_url: null,
     });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["models"] });
   });

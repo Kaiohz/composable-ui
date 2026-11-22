@@ -211,7 +211,7 @@ const gettingStarted: DocChapter = {
       [
         lbl("Model"),
         txt(
-          " — a reusable entry that names a provider and the provider's model identifier for agents to choose.",
+          " — a reusable entry with a display name and the provider's model identifier for agents to choose; how to reach the provider lives in your LLM Settings.",
         ),
       ],
       [

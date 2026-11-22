@@ -7,8 +7,9 @@ import type { IModelPort } from "@/domain/ports/model/modelPort";
 import { apiClient } from "@/infrastructure/api/axiosInstance";
 
 /**
- * Axios adapter for the metadata-only model catalog (§MDL-002): payloads
- * carry only the four MDL-001 metadata fields and never any credential.
+ * Axios adapter for the identity-only model catalog (model-catalog-settings-
+ * only.md §B): payloads carry only `name` / `provider_model` — never
+ * `provider`, `base_url` or any credential field, not even as `null`.
  */
 export const modelApi: IModelPort = {
   async listModels(): Promise<ModelConfiguration[]> {
@@ -17,11 +18,11 @@ export const modelApi: IModelPort = {
   },
 
   async createModel(input: ModelCreateInput): Promise<ModelConfiguration> {
+    // POST accepts exactly `name` and `provider_model` (MODEL-002); the
+    // provider connection is user LLM Settings data and is never sent.
     const response = await apiClient.post<ModelConfiguration>("/api/v1/models", {
       name: input.name,
-      provider: input.provider,
       provider_model: input.provider_model,
-      base_url: input.base_url ?? null,
     });
     return response.data;
   },

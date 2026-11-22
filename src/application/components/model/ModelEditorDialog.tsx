@@ -22,10 +22,12 @@ interface ModelEditorDialogProps {
 }
 
 /**
- * Metadata-only model form (spec §MDL-002): name, provider, provider model
- * identifier and optional base URL. No credential fields or credential
- * management UI of any kind is ever rendered here. The dialog is mounted
- * only while open, so the form state is freshly initialized per session.
+ * Identity-only model form (model-catalog-settings-only.md §E, UI-001):
+ * exactly `Name` and `Provider model`, both required. The provider connection
+ * (`provider`, `base_url`, `api_key`) is configured in the user's LLM
+ * Settings and is never rendered, collected or sent here. The dialog is
+ * mounted only while open, so the form state is freshly initialized per
+ * session.
  */
 export default function ModelEditorDialog({
   open,
@@ -36,12 +38,7 @@ export default function ModelEditorDialog({
   const createModel = useCreateModel();
   const updateModel = useUpdateModel();
   const [name, setName] = useState(model?.name ?? "");
-  const [provider, setProvider] = useState(model?.provider ?? "");
   const [providerModel, setProviderModel] = useState(model?.provider_model ?? "");
-  // The existing base URL is preserved on edit; a destructive `null` is only
-  // sent when the operator explicitly clears the field (the backend treats
-  // PATCH `base_url: null` as "clear it", QA BUG-009).
-  const [baseUrl, setBaseUrl] = useState(model?.base_url ?? "");
   const [errors, setErrors] = useState<string[]>([]);
 
   const isPending = mode === "create" ? createModel.isPending : updateModel.isPending;
@@ -50,21 +47,19 @@ export default function ModelEditorDialog({
     event.preventDefault();
     const validation: string[] = [];
     if (!name.trim()) validation.push("Name is required");
-    if (!provider.trim()) validation.push("Provider is required");
     if (!providerModel.trim()) validation.push("Provider model identifier is required");
     if (validation.length > 0) {
       setErrors(validation);
       return;
     }
     setErrors([]);
-    const baseUrlValue = baseUrl.trim() ? baseUrl.trim() : null;
+    // UI-002: only the two contract fields are sent — never `provider` or
+    // `base_url`, not even as `null`.
     if (mode === "create") {
       createModel.mutate(
         {
           name: name.trim(),
-          provider: provider.trim(),
           provider_model: providerModel.trim(),
-          base_url: baseUrlValue,
         },
         {
           onSuccess: (created) => {
@@ -79,9 +74,7 @@ export default function ModelEditorDialog({
         {
           id: model.id,
           name: name.trim(),
-          provider: provider.trim(),
           provider_model: providerModel.trim(),
-          base_url: baseUrlValue,
         },
         {
           onSuccess: (updated) => {
@@ -107,8 +100,8 @@ export default function ModelEditorDialog({
             {mode === "create" ? "New Model" : "Edit Model"}
           </DialogTitle>
           <DialogDescription className="text-sm text-muted">
-            Model metadata only — no API keys or credentials are stored with models. Existing
-            runtime credential resolution is unchanged.
+            Model identity only — no API keys or credentials are stored with models. The provider
+            connection comes from your LLM Settings.
           </DialogDescription>
         </DialogHeader>
 
@@ -127,22 +120,6 @@ export default function ModelEditorDialog({
           </div>
           <div>
             <Label
-              htmlFor="model-provider"
-              className="mb-2 block text-xs uppercase tracking-[0.1em]"
-            >
-              Provider
-            </Label>
-            <Input
-              id="model-provider"
-              value={provider}
-              onChange={(e) => setProvider(e.target.value)}
-              placeholder="openai…"
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </div>
-          <div>
-            <Label
               htmlFor="model-provider-id"
               className="mb-2 block text-xs uppercase tracking-[0.1em]"
             >
@@ -153,22 +130,6 @@ export default function ModelEditorDialog({
               value={providerModel}
               onChange={(e) => setProviderModel(e.target.value)}
               placeholder="anthropic/claude-haiku-4.5…"
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </div>
-          <div>
-            <Label
-              htmlFor="model-base-url"
-              className="mb-2 block text-xs uppercase tracking-[0.1em]"
-            >
-              Base URL
-            </Label>
-            <Input
-              id="model-base-url"
-              value={baseUrl}
-              onChange={(e) => setBaseUrl(e.target.value)}
-              placeholder="https://api.example.com/v1 (optional)…"
               autoComplete="off"
               spellCheck={false}
             />
