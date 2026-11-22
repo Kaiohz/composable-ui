@@ -1,20 +1,13 @@
 /**
- * Spec: prompts-models-crons-traces.md §MDL-001..MDL-004 (Model UX)
- * Page contract (/models):
- *  - Metadata-only CRUD: cards list name, provider, provider model
- *    identifier, optional base URL, updated timestamp.
- *  - Forms contain ONLY the MDL-001 metadata fields — no API key, token,
- *    credential, masking, reveal, or credential-management UI of any kind.
- *  - Delete with confirmation; a 409 in-use conflict is surfaced.
- *  - Loading, empty, error with retry states.
+ * Model page contract (model-catalog-settings-only.md §E, UI-001..UI-002,
+ * UI-006): the create/edit form shows ONLY `Name` and `Provider model`, both
+ * required, and mutations send ONLY those fields — never `provider`,
+ * `base_url`, nor even `null` placeholders for them. Delete with
+ * confirmation and the 409 in-use conflict remain. Loading, empty and error
+ * states remain.
  *
- * Hook contract Step 2 must implement (repo page-test convention):
- *  - @/application/hooks/model/useModels        → list query
- *  - @/application/hooks/model/useCreateModel   → mutation {name, provider, provider_model, base_url?}
- *  - @/application/hooks/model/useUpdateModel   → mutation {id, name?, provider?, provider_model?, base_url?}
- *  - @/application/hooks/model/useDeleteModel   → mutation (id)
- *
- * Step-1 (Red): the page and hooks do not exist yet.
+ * The Settings page and its LLM Settings fixtures are NOT covered here and
+ * remain untouched (UI-007).
  */
 import { screen } from "@testing-library/react";
 import { within } from "@testing-library/dom";
@@ -76,22 +69,16 @@ describe("ModelsPage", () => {
     modelsState.error = undefined;
   });
 
-  it("lists models with name, provider, provider model and base URL", () => {
-    modelsState.data = [
-      createModelConfiguration({
-        name: "Fast Haiku",
-        provider: "openai",
-        provider_model: "anthropic/claude-haiku-4.5",
-        base_url: "https://api.example.com/v1",
-      }),
-    ];
+  it("lists models with name and provider model only (no Provider, no Base URL)", () => {
+    modelsState.data = [createModelConfiguration()];
 
     renderWithProviders(<ModelsPage />, { initialEntries: ["/models"] });
 
     expect(screen.getByText("Fast Haiku")).toBeInTheDocument();
-    expect(screen.getByText(/openai/i)).toBeInTheDocument();
     expect(screen.getByText(/anthropic\/claude-haiku-4\.5/)).toBeInTheDocument();
-    expect(screen.getByText(/api\.example\.com\/v1/)).toBeInTheDocument();
+    // UI-005: the removed connection surface must be gone entirely.
+    expect(screen.queryByText(/openai/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/api\.example\.com/)).not.toBeInTheDocument();
   });
 
   it("shows a loading state while models load", () => {
@@ -122,38 +109,94 @@ describe("ModelsPage", () => {
     expect(modelsState.refetch).toHaveBeenCalled();
   });
 
-  it("creates a metadata-only model configuration", async () => {
+  it("create form renders only Name and Provider model (UI-001)", async () => {
     modelsState.data = [];
     const user = userEvent.setup();
 
     renderWithProviders(<ModelsPage />, { initialEntries: ["/models"] });
     await user.click(screen.getByRole("button", { name: /new model/i }));
 
-    await user.type(screen.getByLabelText(/^name$/i), "Fast Haiku");
-    await user.type(screen.getByLabelText(/^provider$/i), "openai");
-    await user.type(screen.getByLabelText(/provider model/i), "anthropic/claude-haiku-4.5");
-    await user.type(screen.getByLabelText(/base url/i), "https://api.example.com/v1");
+    expect(screen.getByLabelText(/^name$/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/provider model/i)).toBeInTheDocument();
+    // The connection fields belong to user LLM Settings only — no Model form
+    // field for provider or base URL remains, not even optional.
+    expect(screen.queryByLabelText(/^provider$/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/base url/i)).not.toBeInTheDocument();
+  });
+
+  it("create sends only name and provider_model (UI-002)", async () => {
+    modelsState.data = [];
+    const user = userEvent.setup();
+
+    renderWithProviders(<ModelsPage />, { initialEntries: ["/models"] });
+    await user.click(screen.getByRole("button", { name: /new model/i }));
+
+    await user.type(screen.getByLabelText(/^name$/i), "GLM 5.3 Flash");
+    await user.type(screen.getByLabelText(/provider model/i), "z-ai/glm-5.3-flash:nitro");
     await user.click(screen.getByRole("button", { name: /^create$/i }));
 
     expect(createModelMutate).toHaveBeenCalledWith(
-      {
-        name: "Fast Haiku",
-        provider: "openai",
-        provider_model: "anthropic/claude-haiku-4.5",
-        base_url: "https://api.example.com/v1",
-      },
+      { name: "GLM 5.3 Flash", provider_model: "z-ai/glm-5.3-flash:nitro" },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
+    const payload = createModelMutate.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload).not.toHaveProperty("provider");
+    expect(payload).not.toHaveProperty("base_url"); // not even `null`
   });
 
-  it("forms contain no credential-management UI (MDL-001 metadata only)", async () => {
+  it("edit form renders only Name and Provider model, prefilled", async () => {
+    modelsState.data = [
+      createModelConfiguration({
+        id: "model-1",
+        name: "Fast Haiku",
+        provider_model: "anthropic/claude-haiku-4.5",
+      }),
+    ];
+    const user = userEvent.setup();
+
+    renderWithProviders(<ModelsPage />, { initialEntries: ["/models"] });
+    await cardButton(user, "Fast Haiku", /^edit$/i);
+
+    expect(screen.getByLabelText(/^name$/i)).toHaveValue("Fast Haiku");
+    expect(screen.getByLabelText(/provider model/i)).toHaveValue("anthropic/claude-haiku-4.5");
+    expect(screen.queryByLabelText(/^provider$/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/base url/i)).not.toBeInTheDocument();
+  });
+
+  it("edit sends only name and provider_model (UI-002)", async () => {
+    modelsState.data = [
+      createModelConfiguration({
+        id: "model-1",
+        name: "Fast Haiku",
+        provider_model: "anthropic/claude-haiku-4.5",
+      }),
+    ];
+    const user = userEvent.setup();
+
+    renderWithProviders(<ModelsPage />, { initialEntries: ["/models"] });
+    await cardButton(user, "Fast Haiku", /^edit$/i);
+
+    const nameField = screen.getByLabelText(/^name$/i);
+    await user.clear(nameField);
+    await user.type(nameField, "Edited Haiku");
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+    expect(updateModelMutate).toHaveBeenCalledWith(
+      { id: "model-1", name: "Edited Haiku", provider_model: "anthropic/claude-haiku-4.5" },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+    const payload = updateModelMutate.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload).not.toHaveProperty("provider");
+    expect(payload).not.toHaveProperty("base_url");
+  });
+
+  it("forms contain no credential-management UI (MDL-002/009 regression)", async () => {
     modelsState.data = [];
     const user = userEvent.setup();
 
     renderWithProviders(<ModelsPage />, { initialEntries: ["/models"] });
     await user.click(screen.getByRole("button", { name: /new model/i }));
 
-    // No credential fields of any kind.
     expect(
       screen.queryByLabelText(/api key|api-key|credential|token|secret|password/i),
     ).not.toBeInTheDocument();
@@ -161,74 +204,12 @@ describe("ModelsPage", () => {
       screen.queryByRole("textbox", { name: /api key|token|secret/i }),
     ).not.toBeInTheDocument();
     expect(document.querySelector('input[type="password"]')).toBeNull();
-
-    // And no show/reveal/clear credential actions.
     expect(
-      screen.queryByRole("button", {
-        name: /reveal|copy key|clear key|mask/i,
-      }),
+      screen.queryByRole("button", { name: /reveal|copy key|clear key|mask/i }),
     ).not.toBeInTheDocument();
   });
 
-  it("edits provider metadata while preserving the existing base URL", async () => {
-    modelsState.data = [
-      createModelConfiguration({
-        id: "model-1",
-        name: "Fast Haiku",
-        provider: "openai",
-        provider_model: "anthropic/claude-haiku-4.5",
-        base_url: "https://api.example.com/v1",
-      }),
-    ];
-    const user = userEvent.setup();
-
-    renderWithProviders(<ModelsPage />, { initialEntries: ["/models"] });
-    await cardButton(user, "Fast Haiku", /^edit$/i);
-
-    const providerField = screen.getByLabelText(/^provider$/i);
-    await user.clear(providerField);
-    await user.type(providerField, "anthropic");
-    await user.click(screen.getByRole("button", { name: /^save$/i }));
-
-    // Editing other metadata must NOT delete the stored base URL (MDL-003):
-    // the backend treats PATCH base_url null as "clear it" (QA BUG-009).
-    expect(updateModelMutate).toHaveBeenCalledWith(
-      {
-        id: "model-1",
-        name: "Fast Haiku",
-        provider: "anthropic",
-        provider_model: "anthropic/claude-haiku-4.5",
-        base_url: "https://api.example.com/v1",
-      },
-      expect.objectContaining({ onSuccess: expect.any(Function) }),
-    );
-  });
-
-  it("sends base_url null only when the operator explicitly clears the field", async () => {
-    modelsState.data = [
-      createModelConfiguration({
-        id: "model-1",
-        name: "Fast Haiku",
-        provider: "openai",
-        provider_model: "anthropic/claude-haiku-4.5",
-        base_url: "https://api.example.com/v1",
-      }),
-    ];
-    const user = userEvent.setup();
-
-    renderWithProviders(<ModelsPage />, { initialEntries: ["/models"] });
-    await cardButton(user, "Fast Haiku", /^edit$/i);
-
-    await user.clear(screen.getByLabelText(/^base url$/i));
-    await user.click(screen.getByRole("button", { name: /^save$/i }));
-
-    expect(updateModelMutate).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "model-1", base_url: null }),
-      expect.objectContaining({ onSuccess: expect.any(Function) }),
-    );
-  });
-
-  it("deletes an unreferenced model after destructive confirmation", async () => {
+  it("deletes an unreferenced model after destructive confirmation (UI-006)", async () => {
     modelsState.data = [createModelConfiguration({ id: "model-9", name: "Legacy GPT" })];
     const user = userEvent.setup();
 
@@ -242,7 +223,7 @@ describe("ModelsPage", () => {
     );
   });
 
-  it("surfaces an in-use (409) delete conflict without closing the dialog", async () => {
+  it("surfaces an in-use (409) delete conflict without closing the dialog (UI-006)", async () => {
     modelsState.data = [createModelConfiguration({ id: "model-9", name: "Fast Haiku" })];
     const user = userEvent.setup();
 
@@ -258,7 +239,7 @@ describe("ModelsPage", () => {
     expect(screen.getByText(/referenced by agents|in use/i)).toBeInTheDocument();
   });
 
-  it("provider, provider model identifier and name are required", async () => {
+  it("name and provider model are both required (UI-001)", async () => {
     modelsState.data = [];
     const user = userEvent.setup();
 

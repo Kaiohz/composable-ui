@@ -15,7 +15,8 @@
  * Beyond label presence, QA regressions found in browser review are locked
  * down by dedicated canaries at the end of this file (removed RAG guard
  * string, DOC-10 selector location, DOC-02 chat activity labels, DOC-03 the
- * "Agent Name" field).
+ * "Agent Name" field, DOC-05 the real Models create entry points, DOC-01 the
+ * Model glossary line and the LLM-Settings connection).
  *
  * Documented example values (fictitious names, counts with interpolated
  * values, stand-in credentials) are guide content, not UI labels, so they
@@ -223,6 +224,31 @@ describe("Documentation label contract (REQ-010, REQ-018)", () => {
     // field "Agent Name" — never the generic "Name".
     expect(agentsText).toContain("Agent Name");
     expect(agentsText).not.toMatch(/enter the Name\b/);
+  });
+
+  it("describes only the real create entry points in the DOC-05 Models procedure", () => {
+    const models = DOC_CHAPTERS.find((chapter) => chapter.slug === "models");
+    expect(models, "the Models chapter must stay registered").toBeDefined();
+    const modelsText = textOf(models as DocChapter);
+    // QA BUG-002 regression guard: the Models grid renders the model cards
+    // only — no dashed create tile exists on that page. The real entry
+    // points are the "New Model" header button and the empty state's
+    // "Create Model" button, so the procedure must name those and never a
+    // dashed tile.
+    expect(modelsText).not.toContain("dashed");
+    expect(modelsText).toContain("New Model");
+    expect(modelsText).toContain("Create Model");
+  });
+
+  it("does not describe a Model as naming a provider in DOC-01 Getting Started", () => {
+    const gettingStarted = DOC_CHAPTERS.find((chapter) => chapter.slug === "getting-started");
+    expect(gettingStarted, "the Getting Started chapter must stay registered").toBeDefined();
+    const gettingStartedText = textOf(gettingStarted as DocChapter);
+    // QA BUG-003 regression guard: a Model is identity-only (display name +
+    // provider_model) and carries no provider — the provider connection is
+    // LLM Settings data, which the glossary line must state.
+    expect(gettingStartedText).not.toMatch(/names?\s+a\s+provider/i);
+    expect(gettingStartedText).toContain("LLM Settings");
   });
 });
 

@@ -159,7 +159,6 @@ describe("AgentConfigForm — prompt & model registry selectors", () => {
       createModelConfiguration({
         id: "model-registry-1",
         name: "Fast Haiku",
-        provider: "openai",
         provider_model: "anthropic/claude-haiku-4.5",
       }),
     ];

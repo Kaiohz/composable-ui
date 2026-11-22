@@ -78,8 +78,8 @@ export default function ModelsPage() {
       >
         <div className="flex flex-wrap items-start justify-between gap-4">
           <p className="max-w-md font-body text-sm text-muted">
-            Reusable model metadata catalog. Models hold provider configuration only — API keys and
-            other credentials are never stored here.
+            Reusable model identity catalog. Each entry is a name and a provider model identifier —
+            the provider connection lives in your LLM Settings.
           </p>
           <div className="flex items-center gap-3">
             <Badge variant="default" data-od-id="model-count">
@@ -199,32 +199,11 @@ function ModelCard({
   onConfirmDelete,
 }: Readonly<ModelCardProps>) {
   return (
-    <ResourceCard
-      odId="model-card"
-      icon={Cpu}
-      title={model.name}
-      badges={
-        // `title` keeps the full (possibly ellipsis-clipped) provider value
-        // reachable on hover — same precedent as McpServerCard's URL badge
-        // (review J4).
-        <Badge
-          variant="outline"
-          data-od-id="model-provider"
-          className="shrink-0 capitalize"
-          title={model.provider}
-        >
-          {model.provider}
-        </Badge>
-      }
-    >
+    <ResourceCard odId="model-card" icon={Cpu} title={model.name}>
       <div className="space-y-1 font-mono text-xs">
         <p className="break-all">
           <span className="text-muted uppercase tracking-[0.1em]">Provider model</span>{" "}
           <span className="text-fg">{model.provider_model}</span>
-        </p>
-        <p className="break-all">
-          <span className="text-muted uppercase tracking-[0.1em]">Base URL</span>{" "}
-          <span className="text-fg">{model.base_url ?? "—"}</span>
         </p>
       </div>
       <p className="font-mono text-xs text-muted">

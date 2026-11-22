@@ -13,8 +13,9 @@ import {
 } from "../types";
 
 /**
- * DOC-05 — Models. The metadata-only model catalog and how it differs from
- * the LLM credentials saved in Settings.
+ * DOC-05 — Models. The identity-only model catalog (name + provider model
+ * identifier) and how the provider connection differs from — and lives
+ * separately in — the LLM Settings.
  */
 const models: DocChapter = {
   doc: "DOC-05",
@@ -24,14 +25,14 @@ const models: DocChapter = {
   blocks: [
     para(
       txt(
-        "The Models page is a reusable catalog of model configurations. Each entry is display metadata: a name you recognize, the provider, the provider's model identifier, and an optional base URL. Agents pick a catalog entry instead of typing raw model strings, which keeps provider details in one place.",
+        "The Models page is a reusable catalog of model identities. Each entry is display metadata: a name you recognize and the provider's model identifier to execute. Agents pick a catalog entry instead of typing raw model strings. How to reach the provider — provider, endpoint URL and API key — is configured once in Settings, not per model.",
       ),
     ),
 
     sub("Catalog entries and credentials are different things"),
     warning(
       txt(
-        'Model entries never store API keys or credentials — the dialog says "Model metadata only — no API keys or credentials are stored with models". The key that actually authorizes requests lives in your personal ',
+        'Model entries never store API keys or credentials — the dialog says "Model identity only — no API keys or credentials are stored with models". The connection that actually authorizes requests — the provider, the endpoint URL and the API key — lives in your personal ',
       ),
       lbl("LLM Provider"),
       txt(" card in "),
@@ -39,7 +40,7 @@ const models: DocChapter = {
       txt(" (see "),
       docLink("/documentation/settings", "Settings and Account"),
       txt(
-        "). Changing a model entry never changes who pays for it; changing your LLM settings does.",
+        "). Changing a model entry never changes who pays for it or where requests are sent; changing your LLM settings does.",
       ),
     ),
 
@@ -50,35 +51,29 @@ const models: DocChapter = {
         lbl("Models"),
         txt(" and press "),
         lbl("New Model"),
-        txt(". The dashed tile in the grid opens the same dialog."),
+        txt(" (or "),
+        lbl("Create Model"),
+        txt(" when the catalog is still empty)."),
       ],
       [
         txt("In the "),
         lbl("New Model"),
-        txt(" dialog, fill "),
+        txt(" dialog, fill the two fields: "),
         lbl("Name"),
         txt(" (readable, for example "),
         lbl("Fast Haiku"),
-        txt("), "),
-        lbl("Provider"),
-        txt(" (for example "),
-        lbl("anthropic"),
-        txt("), "),
+        txt(") and "),
         lbl("Provider model"),
         txt(" (the provider's own identifier, for example "),
         lbl("anthropic/claude-haiku-4.5"),
-        txt("), and optionally "),
-        lbl("Base URL"),
-        txt(" for a provider reachable at a custom address."),
+        txt("). Both are required."),
       ],
       [
         txt("Press "),
         lbl("Create"),
         txt(
-          ". Expected outcome: the card appears in the grid showing the provider badge (for example ",
+          ". Expected outcome: the card appears in the grid showing the name and the provider model identifier. No provider, URL or API key is shown there — the connection is a Settings setting.",
         ),
-        lbl("anthropic"),
-        txt("), the provider model and the base URL when set."),
       ],
     ),
 
@@ -88,9 +83,9 @@ const models: DocChapter = {
       lbl("Edit"),
       txt(" on the card to open "),
       lbl("Edit Model"),
-      txt(". Any field may be corrected; the existing "),
-      lbl("Base URL"),
-      txt(" is preserved unless you explicitly clear it. Press "),
+      txt(
+        ". Either field may be corrected; agents referencing the entry pick up the change on their next invocation. Press ",
+      ),
       lbl("Save"),
       txt(" and the card reflects the change immediately."),
     ),
@@ -127,10 +122,9 @@ const models: DocChapter = {
     sub("Practical example"),
     example([
       "Name            : Fast Haiku",
-      "Provider        : anthropic",
       "Provider model  : anthropic/claude-haiku-4.5",
-      "Base URL        : (empty — use the provider default)",
       "Used by         : release-notes-writer, daily-digest",
+      "Connection      : from your LLM Settings (provider, URL, key)",
     ]),
 
     sub("Common problems"),
@@ -147,7 +141,9 @@ const models: DocChapter = {
         lbl("LLM Provider"),
         txt(" card in "),
         docLink("/settings", "Settings"),
-        txt("; the entry carries no key by design."),
+        txt(
+          "; model entries carry no provider, endpoint URL or key by design — the connection is resolved from your settings.",
+        ),
       ],
       [
         txt(

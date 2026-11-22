@@ -1,14 +1,16 @@
 /**
  * Spec: unify-cards-modals.md — Shared resource cards
- * (CARD-003, CARD-004, CARD-005, CARD-006, CARD-007, CARD-008, CARD-009, CARD-012).
+ * (CARD-003, CARD-004, CARD-005, CARD-006, CARD-007, CARD-008, CARD-009,
+ * CARD-012) + model-catalog-settings-only.md §E (UI-004, UI-005).
  *
  * Model cards rendered through the real /models page must use the
  * Agent-reference card visual language and the standard responsive resource
- * grid, while keeping every existing data point, action and stable
- * `data-od-id`.
+ * grid, keeping the name, provider_model, updated date, short id and actions
+ * — while NO LONGER rendering the Provider badge or the Base URL line
+ * (the provider connection is user LLM Settings data, not Model data).
  *
- * Step-1 (Red): ModelCard is still a flat `border bg-surface p-4` card with
- * a text button footer inside a `gap-4 xl:grid-cols-3` grid.
+ * Step-1 (Red): the card still renders the `model-provider` badge and the
+ * Base URL line from the old contract.
  */
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -69,9 +71,7 @@ describe("ModelsPage unified resource card", () => {
     modelsState.data = [
       createModelConfiguration({
         name: "Fast Haiku",
-        provider: "openai",
         provider_model: "anthropic/claude-haiku-4.5",
-        base_url: "https://api.example.com/v1",
       }),
     ];
     modelsState.isLoading = false;
@@ -108,15 +108,22 @@ describe("ModelsPage unified resource card", () => {
     expect(title.classList.contains("text-lg")).toBe(true);
   });
 
-  it("keeps provider, provider model, base URL and id metadata (CARD-006, CARD-012)", () => {
+  it("keeps name, provider model, updated date and short id metadata (UI-004)", () => {
     renderWithProviders(<ModelsPage />, { initialEntries: ["/models"] });
 
+    expect(screen.getByText("Fast Haiku")).toBeInTheDocument();
     expect(screen.getByText(/anthropic\/claude-haiku-4\.5/)).toBeInTheDocument();
-    expect(screen.getByText(/api\.example\.com\/v1/)).toBeInTheDocument();
+    expect(screen.getByText(/updated nov 10, 2026/i)).toBeInTheDocument();
     expect(screen.getByText(/22222222/)).toBeInTheDocument();
-    // Provider badge stays visible and non-shrinking.
-    const badge = document.querySelector<HTMLElement>('[data-od-id="model-provider"]');
-    expect(badge?.classList.contains("shrink-0")).toBe(true);
+  });
+
+  it("no longer renders the Provider badge or the Base URL line (UI-005)", () => {
+    renderWithProviders(<ModelsPage />, { initialEntries: ["/models"] });
+
+    // The card must not surface any provider-connection data point.
+    expect(document.querySelector('[data-od-id="model-provider"]')).toBeNull();
+    expect(screen.queryByText(/base url/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/api\.example\.com/)).not.toBeInTheDocument();
   });
 
   it("places the actions in the top-separated reference footer (CARD-007)", () => {
