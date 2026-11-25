@@ -33,15 +33,19 @@ import { mcpApiClient } from "@/infrastructure/api/mcpAxiosInstance";
  * internal component, hook, store or domain function is mocked.
  */
 
-type AuthMode = "headers" | "user_token";
-
 /**
- * Expected next contract (REQ-004): the masked read projection carries
- * `auth_mode` as non-secret metadata.
+ * A masked read projection WITHOUT `auth_mode` (M-3): the registry does not
+ * echo the field yet, so an entry legitimately carries no mode. The dialog
+ * must treat this as UNKNOWN — show a placeholder and never re-send a
+ * guessed mode (it would silently downgrade a user_token server).
  */
-type RegisteredMcpServerWithAuthMode = RegisteredMcpServer & { auth_mode: AuthMode };
+function withoutAuthMode(server: RegisteredMcpServer): RegisteredMcpServer {
+  const clone = { ...server };
+  delete clone.auth_mode;
+  return clone;
+}
 
-const MASKED_SERVER: RegisteredMcpServerWithAuthMode = {
+const MASKED_SERVER: RegisteredMcpServer = {
   name: "weather",
   transport: McpTransportType.HTTP,
   url: "https://example.com/mcp",
@@ -528,16 +532,16 @@ describe("CreateMcpServerDialog", () => {
 
     describe("editing an existing server", () => {
       it("selects the OAuth2 mode and hides secret fields for a user_token server", () => {
-        const userTokenServer: RegisteredMcpServerWithAuthMode = {
+        const userTokenServer = {
           ...MASKED_SERVER,
           auth_mode: "user_token",
-        };
+        } as const;
 
         renderWithProviders(
           <CreateMcpServerDialog
             open={true}
             onOpenChange={vi.fn()}
-            editServer={userTokenServer as RegisteredMcpServer}
+            editServer={userTokenServer}
           />,
         );
 
@@ -550,7 +554,7 @@ describe("CreateMcpServerDialog", () => {
           <CreateMcpServerDialog
             open={true}
             onOpenChange={vi.fn()}
-            editServer={MASKED_SERVER as RegisteredMcpServer}
+            editServer={MASKED_SERVER}
           />,
         );
 
@@ -559,16 +563,16 @@ describe("CreateMcpServerDialog", () => {
 
       it("submits auth_mode=user_token when saving a user_token server", async () => {
         const user = userEvent.setup();
-        const userTokenServer: RegisteredMcpServerWithAuthMode = {
+        const userTokenServer = {
           ...MASKED_SERVER,
           auth_mode: "user_token",
-        };
+        } as const;
 
         renderWithProviders(
           <CreateMcpServerDialog
             open={true}
             onOpenChange={vi.fn()}
-            editServer={userTokenServer as RegisteredMcpServer}
+            editServer={userTokenServer}
           />,
         );
 
@@ -578,7 +582,138 @@ describe("CreateMcpServerDialog", () => {
           expect(findUpdate()).toBeDefined();
         });
 
-        expect(findUpdate()?.body.auth_mode).toBe("user_token");
+        const payload = findUpdate()?.body;
+        expect(payload?.auth_mode).toBe("user_token");
+        // Unrelated save in user_token mode: the (hidden) credential editors
+        // were untouched — headers/env are OMITTED so stored values that are
+        // not part of the injected-credential mode are preserved, never wiped.
+        expect(payload && "headers" in payload).toBe(false);
+        expect(payload && "env" in payload).toBe(false);
+      });
+
+      describe("auth-mode switch semantics (M-2/M-3)", () => {
+        it("clears the stored headers when an existing headers server is switched to the OAuth2 mode (M-2)", async () => {
+          const user = userEvent.setup();
+
+          renderWithProviders(
+            <CreateMcpServerDialog open={true} onOpenChange={vi.fn()} editServer={MASKED_SERVER} />,
+          );
+
+          await selectAuthMode(user, "oauth");
+          await user.click(screen.getByRole("button", { name: /save|create|submit/i }));
+
+          await waitFor(() => {
+            expect(findUpdate()).toBeDefined();
+          });
+
+          // M-2: an EXPLICIT empty mapping REPLACES the stored dict under the
+          // registry's exclude_unset merge — an OMITTED key would preserve the
+          // stored static credential alongside the injected Bearer token.
+          expect(findUpdate()?.body.headers).toEqual({});
+          expect(findUpdate()?.body.auth_mode).toBe("user_token");
+        });
+
+        it("clears headers when a user_token server is switched back to API key mode without touching secrets", async () => {
+          const user = userEvent.setup();
+
+          renderWithProviders(
+            <CreateMcpServerDialog
+              open={true}
+              onOpenChange={vi.fn()}
+              editServer={{ ...MASKED_SERVER, auth_mode: "user_token", headers: {}, env: {} }}
+            />,
+          );
+
+          await selectAuthMode(user, "api-key");
+          await user.click(screen.getByRole("button", { name: /save|create|submit/i }));
+
+          await waitFor(() => {
+            expect(findUpdate()).toBeDefined();
+          });
+
+          // Crossing the boundary from user_token with an untouched (masked)
+          // editor: the user_token-era stored credential must not be carried
+          // across — an explicit empty dict clears it.
+          expect(findUpdate()?.body.headers).toEqual({});
+          expect(findUpdate()?.body.auth_mode).toBe("headers");
+        });
+
+        it("clears headers when an UNKNOWN-mode server is switched to the OAuth2 mode (stored credential is moot)", async () => {
+          const user = userEvent.setup();
+
+          renderWithProviders(
+            <CreateMcpServerDialog
+              open={true}
+              onOpenChange={vi.fn()}
+              editServer={withoutAuthMode(MASKED_SERVER)}
+            />,
+          );
+
+          await selectAuthMode(user, "oauth");
+          await user.click(screen.getByRole("button", { name: /save|create|submit/i }));
+
+          await waitFor(() => {
+            expect(findUpdate()).toBeDefined();
+          });
+
+          expect(findUpdate()?.body.headers).toEqual({});
+          expect(findUpdate()?.body.auth_mode).toBe("user_token");
+        });
+
+        it("treats an absent auth_mode as UNKNOWN: placeholder shown, no auth_mode/headers/env on the update (M-3)", async () => {
+          const user = userEvent.setup();
+
+          renderWithProviders(
+            <CreateMcpServerDialog
+              open={true}
+              onOpenChange={vi.fn()}
+              editServer={withoutAuthMode(MASKED_SERVER)}
+            />,
+          );
+
+          // The select must NOT display a guessed mode for an unknown wire.
+          expect(getAuthSelect()).toHaveTextContent(/unknown/i);
+
+          await user.click(screen.getByRole("button", { name: /save|create|submit/i }));
+
+          await waitFor(() => {
+            expect(findUpdate()).toBeDefined();
+          });
+
+          const payload = findUpdate()?.body;
+          // Without the wire echo, the stored mode AND the stored credentials
+          // are unknown — an unrelated edit must touch neither (no guessed
+          // auth_mode "headers", no wiped stored headers/env).
+          expect("auth_mode" in payload).toBe(false);
+          expect("headers" in payload).toBe(false);
+          expect("env" in payload).toBe(false);
+        });
+
+        it("sends auth_mode once the user explicitly picks API key mode from UNKNOWN, without clearing untouched headers", async () => {
+          const user = userEvent.setup();
+
+          renderWithProviders(
+            <CreateMcpServerDialog
+              open={true}
+              onOpenChange={vi.fn()}
+              editServer={withoutAuthMode(MASKED_SERVER)}
+            />,
+          );
+
+          await selectAuthMode(user, "api-key");
+          await user.click(screen.getByRole("button", { name: /save|create|submit/i }));
+
+          await waitFor(() => {
+            expect(findUpdate()).toBeDefined();
+          });
+
+          const payload = findUpdate()?.body;
+          // Now known (explicitly picked): sent. But the unknown → headers
+          // transition must NOT wipe possibly-stored headers — the credential
+          // state was never visible to the user.
+          expect(payload?.auth_mode).toBe("headers");
+          expect(payload && "headers" in payload).toBe(false);
+        });
       });
     });
   });
@@ -589,7 +724,7 @@ describe("CreateMcpServerDialog", () => {
         <CreateMcpServerDialog
           open={true}
           onOpenChange={vi.fn()}
-          editServer={MASKED_SERVER as RegisteredMcpServer}
+          editServer={MASKED_SERVER}
         />,
       );
 
@@ -604,7 +739,7 @@ describe("CreateMcpServerDialog", () => {
         <CreateMcpServerDialog
           open={true}
           onOpenChange={vi.fn()}
-          editServer={MASKED_SERVER as RegisteredMcpServer}
+          editServer={MASKED_SERVER}
         />,
       );
 
@@ -630,7 +765,7 @@ describe("CreateMcpServerDialog", () => {
         <CreateMcpServerDialog
           open={true}
           onOpenChange={vi.fn()}
-          editServer={MASKED_SERVER as RegisteredMcpServer}
+          editServer={MASKED_SERVER}
         />,
       );
 

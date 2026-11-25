@@ -20,12 +20,7 @@ import { renderWithProviders } from "../../utils/render";
  * tests/behavioral/mcpServer/McpRegistryPage.test.tsx.
  */
 
-type AuthMode = "headers" | "user_token";
-
-/** Expected next contract (REQ-004): the masked projection carries auth_mode. */
-type RegisteredMcpServerWithAuthMode = RegisteredMcpServer & { auth_mode: AuthMode };
-
-const MASKED_SERVER: RegisteredMcpServerWithAuthMode = {
+const MASKED_SERVER: RegisteredMcpServer = {
   name: "weather",
   transport: McpTransportType.HTTP,
   url: "https://example.com/mcp",
@@ -216,6 +211,31 @@ describe("McpRegistryPage edit dialog (REQ-016 — no auto-reveal)", () => {
     await waitFor(() => {
       expect(findUpdate()).toBeDefined();
     });
+    expect(findUpdate()?.body.auth_mode).toBe("user_token");
+    expect(findReveal()).toBeUndefined();
+  });
+
+  it("clears the stored headers when the edit switches the mode to OAuth2 (M-2: explicit empty dict)", async () => {
+    listResponse = [MASKED_SERVER];
+    installMcpAdapter();
+    const user = userEvent.setup();
+
+    renderWithProviders(<McpRegistryPage />, { initialEntries: ["/mcp-registry"] });
+
+    await screen.findByText("weather");
+    await openEditDialog(user);
+    await user.click(screen.getByRole("combobox", { name: /authentication/i }));
+    await user.click(await screen.findByRole("option", { name: /oauth2/i }));
+    await user.click(screen.getByRole("button", { name: /save|create|submit/i }));
+
+    await waitFor(() => {
+      expect(findUpdate()).toBeDefined();
+    });
+
+    // An explicit empty mapping REPLACES the stored dict under the registry's
+    // exclude_unset merge — the stale static credential stops being sent
+    // alongside the injected Bearer token.
+    expect(findUpdate()?.body.headers).toEqual({});
     expect(findUpdate()?.body.auth_mode).toBe("user_token");
     expect(findReveal()).toBeUndefined();
   });

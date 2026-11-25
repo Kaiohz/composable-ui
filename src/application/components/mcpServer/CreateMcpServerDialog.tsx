@@ -78,7 +78,17 @@ export function CreateMcpServerDialog({
   const [openapiUrl, setOpenapiUrl] = useState(base?.openapi_url ?? "");
   const [headers, setHeaders] = useState<Record<string, string>>(base?.headers ?? {});
   const [env, setEnv] = useState<Record<string, string>>(base?.env ?? {});
-  const [authMode, setAuthMode] = useState<McpAuthMode>(base?.auth_mode ?? "headers");
+  /**
+   * The current auth mode. `undefined` means UNKNOWN: the read projection
+   * carries `auth_mode` only once the registry persists it (REQ-004 rollout),
+   * so the edit dialog shows a placeholder instead of guessing `"headers"` —
+   * a guess would silently downgrade a stored `user_token` server on save.
+   * Create mode always resolves: `"headers"` is the REQ-006 default.
+   */
+  const initialAuthMode: McpAuthMode | undefined = isEdit
+    ? editServer?.auth_mode
+    : (prefill?.auth_mode ?? "headers");
+  const [authMode, setAuthMode] = useState<McpAuthMode | undefined>(initialAuthMode);
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -119,16 +129,41 @@ export function CreateMcpServerDialog({
       url: isOpenapi ? null : url.trim(),
       headers: isUserToken ? {} : headers,
       env: isUserToken || isOpenapi ? {} : env,
-      auth_mode: authMode,
+      // Create mode always has a resolved mode; the edit-mode Test connection
+      // is a server-side dry run (nothing is persisted), so `?? "headers"` is
+      // a harmless default when the read projection carried no auth_mode.
+      auth_mode: authMode ?? "headers",
       source_type: sourceType,
       openapi_url: isOpenapi ? openapiUrl.trim() : null,
     };
   }
 
   /**
-   * Partial payload for the edit flow (REQ-016): untouched secret fields are
-   * OMITTED — an absent key is never sent (not even as empty) so the
-   * backend's `exclude_unset` merge preserves the stored secrets. The legacy
+   * Partial payload for the edit flow (REQ-016): an ABSENT key never reaches
+   * the registry, whose `exclude_unset` merge then preserves the stored
+   * values. Deliberate exceptions clear the stored static credential when the
+   * user crosses the auth-mode boundary (M-2): the credential editors are
+   * HIDDEN in `user_token` mode, so the headers state there carries no
+   * committed user data.
+   *
+   * - Switching TO `user_token` (from `"headers"` or from an UNKNOWN mode):
+   *   an explicit empty `headers` dict REPLACES the stored dict under the
+   *   registry merge (an absent key would preserve it) — the static
+   *   credential stops being transmitted alongside the injected Bearer token.
+   * - Switching FROM `user_token` to `"headers"` with an untouched editor:
+   *   the user_token-era stored credential must not be carried across the
+   *   boundary (an explicit empty dict clears it). Unknown → `"headers"`
+   *   clears NOTHING: the stored mode and credentials are unknown, and a
+   *   guessed wipe could destroy real data — only what the user explicitly
+   *   touched changes.
+   *
+   * `auth_mode` is sent ONLY when known: the registry does not echo the field
+   * yet (REQ-004 rollout), and re-sending a guessed `"headers"` on an
+   * unrelated edit would silently downgrade a `user_token` server. `env` is
+   * deliberately NOT cleared on a mode switch: `headers` is the credential
+   * carrier this dialog manages, while `env` stays masked in edit mode and
+   * may hold non-credential configuration — wiping it would be silent data
+   * loss (create mode still sends `env: {}` in `user_token` mode). The legacy
    * `auth_token` is never part of the payload (REQ-005: the backend forwards
    * the stored token as the Authorization header).
    */
@@ -136,13 +171,31 @@ export function CreateMcpServerDialog({
     const input: McpServerUpdateInput = {
       name: name.trim(),
       url: isOpenapi ? null : url.trim(),
-      auth_mode: authMode,
       source_type: sourceType,
       openapi_url: isOpenapi ? openapiUrl.trim() : null,
     };
-    if (!isUserToken) {
+    // M-3: send auth_mode ONLY when known — an unrelated edit of a server
+    // whose read projection carries no auth_mode must not silently downgrade
+    // it (the absent key preserves the stored mode under the exclude_unset
+    // merge).
+    if (authMode !== undefined) {
+      input.auth_mode = authMode;
+    }
+    if (isUserToken) {
+      if (authMode !== initialAuthMode) {
+        // M-2: the user crossed INTO user_token — send an EXPLICIT empty
+        // dict (an absent key would preserve the stored credential under the
+        // exclude_unset merge) so the static credential stops being sent
+        // alongside the injected Bearer token.
+        input.headers = {};
+      }
+    } else {
       if (Object.keys(headers).length > 0) {
         input.headers = headers;
+      } else if (initialAuthMode === "user_token") {
+        // user_token → "headers" with an untouched editor: nothing valid to
+        // carry across the boundary — clear it explicitly.
+        input.headers = {};
       }
       if (!isOpenapi && Object.keys(env).length > 0) {
         input.env = env;
@@ -303,9 +356,12 @@ export function CreateMcpServerDialog({
               >
                 Authentication
               </Label>
-              <Select value={authMode} onValueChange={(v) => setAuthMode(v as McpAuthMode)}>
+              <Select
+                value={authMode ?? ""}
+                onValueChange={(v) => setAuthMode(v as McpAuthMode)}
+              >
                 <SelectTrigger id="mcp-auth-mode" data-od-id="mcp-auth-mode">
-                  <SelectValue />
+                  <SelectValue placeholder="Unknown — select a mode" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="user_token">OAuth2 — connected user's token</SelectItem>

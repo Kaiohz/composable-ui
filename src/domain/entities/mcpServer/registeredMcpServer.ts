@@ -23,7 +23,8 @@ export type McpAuthMode = "headers" | "user_token";
  * A registered MCP server as stored in the central registry.
  *
  * The backend returns a *masked* representation on list/get (secrets stripped
- * to `null` / empty objects; `auth_mode` travels as non-secret metadata); the
+ * to `null` / empty objects; `auth_mode` is echoed as non-secret metadata once
+ * the registry persists it — optional until then, see {@link auth_mode}); the
  * *revealed* representation (via the `/reveal` endpoint) populates `auth_token`,
  * `headers`, and `env` in plaintext. Both shapes share the same interface —
  * the only difference is whether the secret fields are populated.
@@ -51,8 +52,17 @@ export interface RegisteredMcpServer {
   readonly source_type: McpSourceType;
   /** URL of the OpenAPI spec. `null` for `"external"` servers. */
   readonly openapi_url: string | null;
-  /** How the backend forwards credentials (default `"headers"`). */
-  readonly auth_mode: McpAuthMode;
+  /**
+   * How the backend forwards credentials (REQ-004, default `"headers"`).
+   *
+   * OPTIONAL on the READ projection: the field only travels on the wire once
+   * the registry persists and echoes it (REQ-004 rollout). `undefined` means
+   * UNKNOWN — read defensively (`entry.auth_mode ?? "headers"`) for display
+   * defaults, and NEVER re-send a guessed mode on update (an unrelated edit
+   * would silently downgrade a stored `user_token` server). Write payloads
+   * ({@link McpServerInput}) keep the field REQUIRED.
+   */
+  readonly auth_mode?: McpAuthMode;
 }
 
 /**
