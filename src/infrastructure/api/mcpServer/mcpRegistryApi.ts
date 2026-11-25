@@ -1,6 +1,7 @@
 import type {
   RegisteredMcpServer,
   McpServerInput,
+  McpServerUpdateInput,
   McpServerValidationResult,
 } from "@/domain/entities/mcpServer/registeredMcpServer";
 import type { McpRegistryPort } from "@/domain/ports/mcpServer/mcpRegistryPort";
@@ -38,7 +39,11 @@ export const mcpRegistryApi: McpRegistryPort = {
     return response.data;
   },
 
-  async update(name: string, input: McpServerInput): Promise<RegisteredMcpServer> {
+  /**
+   * Update an existing server (partial semantics: keys absent from the input
+   * preserve the stored secrets). Returns the masked entry.
+   */
+  async update(name: string, input: McpServerUpdateInput): Promise<RegisteredMcpServer> {
     const response = await mcpApiClient.put<RegisteredMcpServer>(
       `${BASE}/${encodeURIComponent(name)}`,
       input,

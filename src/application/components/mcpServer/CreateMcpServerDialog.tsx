@@ -1,7 +1,9 @@
 import { useState, type SyntheticEvent } from "react";
 import { toast } from "sonner";
 import type {
+  McpAuthMode,
   McpServerInput,
+  McpServerUpdateInput,
   McpSourceType,
   RegisteredMcpServer,
 } from "@/domain/entities/mcpServer/registeredMcpServer";
@@ -42,14 +44,25 @@ interface CreateMcpServerDialogProps {
 const FORM_ID = "mcp-server-form";
 
 /**
+ * Placeholder shown on secret inputs while editing: the backend masks stored
+ * values (REQ-018) — leaving them empty preserves the stored secret on save
+ * (partial update, REQ-016/REQ-019).
+ */
+const MASKED_SECRET_PLACEHOLDER = "stored — leave empty to keep";
+
+/**
  * Dialog to create or edit a registered MCP server. The form collects the
  * registry fields and submits via {@link useCreateMcpServer} (create mode) or
- * {@link useUpdateMcpServer} (edit mode). A "Test connection" button calls
- * {@link useValidateMcpServer} and surfaces the tool count on success.
+ * {@link useUpdateMcpServer} (edit mode, partial-update semantics). A "Test
+ * connection" button calls {@link useValidateMcpServer} and surfaces the tool
+ * count on success.
  *
- * The top-level "Type" select switches between an `external` remote MCP
- * server (url + headers + env + auth_token) and an `openapi` spec-mounted
- * server (openapi_url + headers — no env, no auth_token).
+ * The "Type" select switches between an `external` remote MCP server
+ * (url + headers/env) and an `openapi` spec-mounted server (openapi_url +
+ * headers — no env). The "Authentication" select chooses how credentials
+ * reach the server (REQ-006): `user_token` lets the backend inject the
+ * connected user's token (no secret fields are shown), `headers` (default)
+ * exposes the standard headers editor for e.g. `X-API-Key`.
  */
 export function CreateMcpServerDialog({
   open,
@@ -65,7 +78,7 @@ export function CreateMcpServerDialog({
   const [openapiUrl, setOpenapiUrl] = useState(base?.openapi_url ?? "");
   const [headers, setHeaders] = useState<Record<string, string>>(base?.headers ?? {});
   const [env, setEnv] = useState<Record<string, string>>(base?.env ?? {});
-  const [authToken, setAuthToken] = useState(base?.auth_token ?? "");
+  const [authMode, setAuthMode] = useState<McpAuthMode>(base?.auth_mode ?? "headers");
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -74,6 +87,7 @@ export function CreateMcpServerDialog({
   const validateServer = useValidateMcpServer();
 
   const isOpenapi = sourceType === "openapi";
+  const isUserToken = authMode === "user_token";
   const submitLabel = isEdit ? "Save" : "Create";
 
   function resetForm() {
@@ -83,7 +97,7 @@ export function CreateMcpServerDialog({
     setOpenapiUrl("");
     setHeaders({});
     setEnv({});
-    setAuthToken("");
+    setAuthMode("headers");
     setValidationMessage(null);
     setValidationError(null);
   }
@@ -93,16 +107,48 @@ export function CreateMcpServerDialog({
     onOpenChange(false);
   }
 
+  /**
+   * Full payload for create / validate. In `user_token` mode NO explicit
+   * credentials are sent — the backend injects the connected user's token
+   * (REQ-004); values typed before switching mode are ignored (the editors
+   * are hidden and carry no committed data).
+   */
   function buildInput(): McpServerInput {
     return {
       name: name.trim(),
       url: isOpenapi ? null : url.trim(),
-      headers,
-      env: isOpenapi ? {} : env,
-      auth_token: isOpenapi ? null : authToken,
+      headers: isUserToken ? {} : headers,
+      env: isUserToken || isOpenapi ? {} : env,
+      auth_mode: authMode,
       source_type: sourceType,
       openapi_url: isOpenapi ? openapiUrl.trim() : null,
     };
+  }
+
+  /**
+   * Partial payload for the edit flow (REQ-016): untouched secret fields are
+   * OMITTED — an absent key is never sent (not even as empty) so the
+   * backend's `exclude_unset` merge preserves the stored secrets. The legacy
+   * `auth_token` is never part of the payload (REQ-005: the backend forwards
+   * the stored token as the Authorization header).
+   */
+  function buildUpdateInput(): McpServerUpdateInput {
+    const input: McpServerUpdateInput = {
+      name: name.trim(),
+      url: isOpenapi ? null : url.trim(),
+      auth_mode: authMode,
+      source_type: sourceType,
+      openapi_url: isOpenapi ? openapiUrl.trim() : null,
+    };
+    if (!isUserToken) {
+      if (Object.keys(headers).length > 0) {
+        input.headers = headers;
+      }
+      if (!isOpenapi && Object.keys(env).length > 0) {
+        input.env = env;
+      }
+    }
+    return input;
   }
 
   async function handleTestConnection() {
@@ -112,8 +158,7 @@ export function CreateMcpServerDialog({
       const result = await validateServer.mutateAsync(buildInput());
       setValidationMessage(`✓ ${result.tool_count} tools`);
     } catch (error) {
-      const message = extractApiMessage(error);
-      setValidationError(message);
+      setValidationError(extractApiMessage(error));
     }
   }
 
@@ -133,7 +178,6 @@ export function CreateMcpServerDialog({
       return;
     }
 
-    const input = buildInput();
     const onSuccess = () => {
       toast.success(isEdit ? "Server updated successfully" : "Server created successfully");
       handleClose();
@@ -143,9 +187,9 @@ export function CreateMcpServerDialog({
     };
 
     if (isEdit && editServer) {
-      updateServer.mutate({ name: editServer.name, input }, { onSuccess, onError });
+      updateServer.mutate({ name: editServer.name, input: buildUpdateInput() }, { onSuccess, onError });
     } else {
-      createServer.mutate(input, { onSuccess, onError });
+      createServer.mutate(buildInput(), { onSuccess, onError });
     }
   }
 
@@ -168,8 +212,8 @@ export function CreateMcpServerDialog({
               {isEdit ? "Edit MCP Server" : "Create MCP Server"}
             </DialogTitle>
             <DialogDescription className="text-sm text-muted">
-              Register a remote MCP server. Secrets are stored encrypted and revealed only on
-              demand.
+              Register a remote MCP server. Secrets are stored encrypted; while editing, leave
+              secret fields empty to keep the stored values.
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -252,41 +296,43 @@ export function CreateMcpServerDialog({
               </div>
             )}
 
-            <KeyValueEditor
-              label="Headers"
-              value={headers}
-              onChange={setHeaders}
-              keyPlaceholder="Header name"
-              valuePlaceholder="Header value"
-            />
+            <div>
+              <Label
+                htmlFor="mcp-auth-mode"
+                className="mb-2 block text-xs uppercase tracking-[0.1em]"
+              >
+                Authentication
+              </Label>
+              <Select value={authMode} onValueChange={(v) => setAuthMode(v as McpAuthMode)}>
+                <SelectTrigger id="mcp-auth-mode" data-od-id="mcp-auth-mode">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user_token">OAuth2 — connected user's token</SelectItem>
+                  <SelectItem value="headers">API key — headers</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            {!isOpenapi && (
+            {!isUserToken && (
               <>
                 <KeyValueEditor
-                  label="Env"
-                  value={env}
-                  onChange={setEnv}
-                  keyPlaceholder="Variable name"
-                  valuePlaceholder="Variable value"
+                  label="Headers"
+                  value={headers}
+                  onChange={setHeaders}
+                  keyPlaceholder="Header name"
+                  valuePlaceholder={isEdit ? MASKED_SECRET_PLACEHOLDER : "Header value"}
                 />
 
-                <div>
-                  <Label
-                    htmlFor="mcp-auth-token"
-                    className="mb-2 block text-xs uppercase tracking-[0.1em]"
-                  >
-                    Auth Token
-                  </Label>
-                  <Input
-                    id="mcp-auth-token"
-                    type="password"
-                    value={authToken}
-                    onChange={(e) => setAuthToken(e.target.value)}
-                    placeholder="Optional auth token"
-                    autoComplete="off"
-                    aria-label="auth_token"
+                {!isOpenapi && (
+                  <KeyValueEditor
+                    label="Env"
+                    value={env}
+                    onChange={setEnv}
+                    keyPlaceholder="Variable name"
+                    valuePlaceholder={isEdit ? MASKED_SECRET_PLACEHOLDER : "Variable value"}
                   />
-                </div>
+                )}
               </>
             )}
 
