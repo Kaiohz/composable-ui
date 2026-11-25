@@ -714,6 +714,34 @@ describe("CreateMcpServerDialog", () => {
           expect(payload?.auth_mode).toBe("headers");
           expect(payload && "headers" in payload).toBe(false);
         });
+
+        it("clears the stored headers after a user_token → headers → user_token round trip (M-2)", async () => {
+          const user = userEvent.setup();
+
+          renderWithProviders(
+            <CreateMcpServerDialog
+              open={true}
+              onOpenChange={vi.fn()}
+              editServer={{ ...MASKED_SERVER, auth_mode: "user_token" }}
+            />,
+          );
+
+          await selectAuthMode(user, "api-key");
+          await selectAuthMode(user, "oauth");
+          await user.click(screen.getByRole("button", { name: /save|create|submit/i }));
+
+          await waitFor(() => {
+            expect(findUpdate()).toBeDefined();
+          });
+
+          // The round trip ends on the mode it started with: a final-vs-
+          // initial comparison would drop the clear — yet the user DID cross
+          // INTO user_token during this session, so the stored static
+          // credential must not survive it (an absent key would preserve it
+          // under the registry's exclude_unset merge).
+          expect(findUpdate()?.body.headers).toEqual({});
+          expect(findUpdate()?.body.auth_mode).toBe("user_token");
+        });
       });
     });
   });

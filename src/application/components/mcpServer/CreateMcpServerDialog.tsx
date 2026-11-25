@@ -89,6 +89,14 @@ export function CreateMcpServerDialog({
     ? editServer?.auth_mode
     : (prefill?.auth_mode ?? "headers");
   const [authMode, setAuthMode] = useState<McpAuthMode | undefined>(initialAuthMode);
+  /**
+   * Whether the user explicitly crossed the auth-mode boundary during THIS
+   * dialog session. The final mode alone cannot express a round trip
+   * (`user_token` → `"headers"` → `user_token`): the final state equals the
+   * initial one, yet the user DID cross into `user_token`, and the stored
+   * static credential must not survive that crossing (M-2).
+   */
+  const [authModeCrossed, setAuthModeCrossed] = useState(false);
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -108,8 +116,22 @@ export function CreateMcpServerDialog({
     setHeaders({});
     setEnv({});
     setAuthMode("headers");
+    setAuthModeCrossed(false);
     setValidationMessage(null);
     setValidationError(null);
+  }
+
+  /**
+   * Select handler: records a crossing whenever the picked mode differs from
+   * the one this dialog session opened with — the "did the user cross the
+   * auth-mode boundary at any point of THIS session?" gate consumed by
+   * {@link buildUpdateInput}.
+   */
+  function handleAuthModeChange(next: McpAuthMode) {
+    setAuthMode(next);
+    if (next !== initialAuthMode) {
+      setAuthModeCrossed(true);
+    }
   }
 
   function handleClose() {
@@ -146,10 +168,16 @@ export function CreateMcpServerDialog({
    * HIDDEN in `user_token` mode, so the headers state there carries no
    * committed user data.
    *
-   * - Switching TO `user_token` (from `"headers"` or from an UNKNOWN mode):
-   *   an explicit empty `headers` dict REPLACES the stored dict under the
-   *   registry merge (an absent key would preserve it) — the static
-   *   credential stops being transmitted alongside the injected Bearer token.
+   * - Crossed INTO `user_token` at any point of THIS session (from
+   *   `"headers"`, from an UNKNOWN mode, or via a round trip `user_token` →
+   *   `"headers"` → `user_token`): an explicit empty `headers` dict REPLACES
+   *   the stored dict under the registry merge (an absent key would preserve
+   *   it) — the static credential stops being transmitted alongside the
+   *   injected Bearer token. The gate is `authModeCrossed` (did the user
+   *   cross into `user_token` during THIS edit session?), NOT a
+   *   final-vs-initial comparison: a round trip ends on the mode it started
+   *   with, and only the crossing proves the stored credential must not
+   *   survive.
    * - Switching FROM `user_token` to `"headers"` with an untouched editor:
    *   the user_token-era stored credential must not be carried across the
    *   boundary (an explicit empty dict clears it). Unknown → `"headers"`
@@ -182,9 +210,11 @@ export function CreateMcpServerDialog({
       input.auth_mode = authMode;
     }
     if (isUserToken) {
-      if (authMode !== initialAuthMode) {
-        // M-2: the user crossed INTO user_token — send an EXPLICIT empty
-        // dict (an absent key would preserve the stored credential under the
+      if (authModeCrossed) {
+        // M-2: the user crossed INTO user_token at some point of THIS
+        // session (a final-vs-initial comparison cannot see a round trip
+        // user_token → "headers" → user_token) — send an EXPLICIT empty dict
+        // (an absent key would preserve the stored credential under the
         // exclude_unset merge) so the static credential stops being sent
         // alongside the injected Bearer token.
         input.headers = {};
@@ -358,7 +388,7 @@ export function CreateMcpServerDialog({
               </Label>
               <Select
                 value={authMode ?? ""}
-                onValueChange={(v) => setAuthMode(v as McpAuthMode)}
+                onValueChange={(v) => handleAuthModeChange(v as McpAuthMode)}
               >
                 <SelectTrigger id="mcp-auth-mode" data-od-id="mcp-auth-mode">
                   <SelectValue placeholder="Unknown — select a mode" />
