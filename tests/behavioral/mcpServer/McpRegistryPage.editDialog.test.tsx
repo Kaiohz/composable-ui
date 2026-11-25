@@ -104,10 +104,31 @@ function installMcpAdapter() {
 }
 
 const findReveal = () => requests.find((r) => /\/reveal$/.test(r.url));
+const findValidate = () =>
+  requests.find((r) => r.method === "post" && r.url.endsWith("/validate"));
 const findUpdate = () =>
   requests.find(
     (r) => r.method === "put" && r.url.startsWith("/api/v1/mcp/servers/"),
   );
+
+/**
+ * A masked read projection WITHOUT `auth_mode` (M-3 rollout skew): the
+ * registry does not echo the field, so the mode is UNKNOWN.
+ */
+function withoutAuthMode(server: RegisteredMcpServer): RegisteredMcpServer {
+  const clone = { ...server };
+  delete clone.auth_mode;
+  return clone;
+}
+
+/** BUG-003: accept the one-line confirm that gates a destructive mode switch. */
+async function confirmAuthModeSwitch(user: ReturnType<typeof userEvent.setup>) {
+  const confirmDialog = await screen.findByRole("alertdialog");
+  await user.click(
+    within(confirmDialog).getByRole("button", { name: /switch mode/i }),
+  );
+  expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+}
 
 async function openEditDialog(user: ReturnType<typeof userEvent.setup>): Promise<void> {
   await user.click(screen.getByRole("button", { name: "Edit" }));
@@ -226,6 +247,8 @@ describe("McpRegistryPage edit dialog (REQ-016 — no auto-reveal)", () => {
     await openEditDialog(user);
     await user.click(screen.getByRole("combobox", { name: /authentication/i }));
     await user.click(await screen.findByRole("option", { name: /oauth2/i }));
+    // BUG-003: the destructive switch is gated by the one-line confirm.
+    await confirmAuthModeSwitch(user);
     await user.click(screen.getByRole("button", { name: /save|create|submit/i }));
 
     await waitFor(() => {
@@ -238,6 +261,171 @@ describe("McpRegistryPage edit dialog (REQ-016 — no auto-reveal)", () => {
     expect(findUpdate()?.body.headers).toEqual({});
     expect(findUpdate()?.body.auth_mode).toBe("user_token");
     expect(findReveal()).toBeUndefined();
+  });
+
+  it("carries server_id and OMITS untouched masked secrets on the edit-mode Test connection (BUG-001)", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<McpRegistryPage />, { initialEntries: ["/mcp-registry"] });
+
+    await screen.findByText("weather");
+    await openEditDialog(user);
+    await user.click(screen.getByRole("button", { name: /test connection/i }));
+
+    await waitFor(() => {
+      expect(findValidate()).toBeDefined();
+    });
+
+    const payload = findValidate()?.body;
+    // The edit target's identity: the registry merges the STORED secrets into
+    // the candidate before probing (BUG-001 — the masked projection withholds
+    // the stored credential, so the dry run MUST carry the identity it merges
+    // from; the old identity-less probe ran unauthenticated and reported a
+    // false "unreachable" 401).
+    expect(payload?.server_id).toBe("weather");
+    expect(payload?.auth_mode).toBe("headers");
+    expect(payload?.url).toBe("https://example.com/mcp");
+    // Untouched masked fields are sent as-is-OMITTED: a present-empty headers
+    // dict would override the merged stored secrets and re-introduce the
+    // false 401 (partial merge semantics, REQ-016/REQ-019).
+    expect(payload && "headers" in payload).toBe(false);
+    expect(payload && "env" in payload).toBe(false);
+  });
+
+  it("carries user-typed headers on the edit-mode Test connection (they replace the merged stored values)", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<McpRegistryPage />, { initialEntries: ["/mcp-registry"] });
+
+    await screen.findByText("weather");
+    await openEditDialog(user);
+    await user.type(screen.getByLabelText(/headers key/i), "X-API-Key");
+    await user.type(screen.getByLabelText(/headers value/i), "cpk_typed_key");
+    // Scope to the Headers editor — the env editor renders its own Add.
+    const headersEditor = screen.getByText(/^headers$/i).closest("div") as HTMLElement;
+    await user.click(within(headersEditor).getByRole("button", { name: /add/i }));
+
+    await user.click(screen.getByRole("button", { name: /test connection/i }));
+
+    await waitFor(() => {
+      expect(findValidate()).toBeDefined();
+    });
+
+    const payload = findValidate()?.body;
+    expect(payload?.server_id).toBe("weather");
+    // A user-visible CHANGE travels (the backend replaces its merged stored
+    // header with this explicit one); the untouched env editor stays omitted.
+    expect(payload?.headers).toEqual({ "X-API-Key": "cpk_typed_key" });
+    expect(payload && "env" in payload).toBe(false);
+  });
+
+  it("omits server_id on the create-mode Test connection (create flow unchanged)", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<McpRegistryPage />, { initialEntries: ["/mcp-registry"] });
+
+    await screen.findByText("weather");
+    await user.click(screen.getByRole("button", { name: /add mcp server/i }));
+    expect(await screen.findByText("Create MCP Server")).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/name/i), "new-server");
+    await user.type(screen.getByLabelText(/url/i), "https://new.example.com/mcp");
+
+    await user.click(screen.getByRole("button", { name: /test connection/i }));
+
+    await waitFor(() => {
+      expect(findValidate()).toBeDefined();
+    });
+
+    const payload = findValidate()?.body;
+    // Create mode is a stateless dry run of a fresh candidate — no stored
+    // entry exists to merge from.
+    expect(payload && "server_id" in payload).toBe(false);
+    expect(payload?.name).toBe("new-server");
+    expect(payload?.auth_mode).toBe("headers");
+  });
+
+  it("asks for a one-line confirmation before switching an existing server's auth mode (BUG-003)", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<McpRegistryPage />, { initialEntries: ["/mcp-registry"] });
+
+    await screen.findByText("weather");
+    await openEditDialog(user);
+
+    await user.click(screen.getByRole("combobox", { name: /authentication/i }));
+    await user.click(await screen.findByRole("option", { name: /oauth2/i }));
+
+    // The switch is NOT applied until the destructive-transition confirm (the
+    // modal confirm aria-hides the page behind it — the un-applied select is
+    // only verifiable after it closes).
+    const confirmDialog = await screen.findByRole("alertdialog");
+    expect(within(confirmDialog).getByText(/clears the stored/i)).toBeInTheDocument();
+    expect(findUpdate()).toBeUndefined();
+
+    await confirmAuthModeSwitch(user);
+
+    expect(screen.getByRole("combobox", { name: /authentication/i })).toHaveTextContent(/oauth2/i);
+
+    await user.click(screen.getByRole("button", { name: /save|create|submit/i }));
+    await waitFor(() => {
+      expect(findUpdate()).toBeDefined();
+    });
+    expect(findUpdate()?.body.auth_mode).toBe("user_token");
+    expect(findUpdate()?.body.headers).toEqual({});
+  });
+
+  it("keeps the current auth mode when the switch confirmation is cancelled (BUG-003)", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<McpRegistryPage />, { initialEntries: ["/mcp-registry"] });
+
+    await screen.findByText("weather");
+    await openEditDialog(user);
+
+    await user.click(screen.getByRole("combobox", { name: /authentication/i }));
+    await user.click(await screen.findByRole("option", { name: /oauth2/i }));
+
+    const confirmDialog = await screen.findByRole("alertdialog");
+    await user.click(
+      within(confirmDialog).getByRole("button", { name: /cancel/i }),
+    );
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+
+    // The select kept the stored mode and saving leaves the stored credential
+    // untouched (headers omitted — no wipe).
+    expect(screen.getByRole("combobox", { name: /authentication/i })).toHaveTextContent(/api key/i);
+    await user.click(screen.getByRole("button", { name: /save|create|submit/i }));
+    await waitFor(() => {
+      expect(findUpdate()).toBeDefined();
+    });
+    expect(findUpdate()?.body.auth_mode).toBe("headers");
+    expect(findUpdate() && "headers" in (findUpdate()?.body ?? {})).toBe(false);
+  });
+
+  it("does NOT ask for confirmation when switching an UNKNOWN-mode server to the API key mode (nothing stored is wiped)", async () => {
+    listResponse = [withoutAuthMode(MASKED_SERVER)];
+    installMcpAdapter();
+    const user = userEvent.setup();
+
+    renderWithProviders(<McpRegistryPage />, { initialEntries: ["/mcp-registry"] });
+
+    await screen.findByText("weather");
+    await openEditDialog(user);
+
+    await user.click(screen.getByRole("combobox", { name: /authentication/i }));
+    await user.click(await screen.findByRole("option", { name: /api key/i }));
+
+    // M-3: the stored state is unknown and untouched — the transition is safe,
+    // no destructive-transition confirm may appear.
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /authentication/i })).toHaveTextContent(/api key/i);
+
+    await user.click(screen.getByRole("button", { name: /save|create|submit/i }));
+    await waitFor(() => {
+      expect(findUpdate()).toBeDefined();
+    });
+    expect(findUpdate()?.body.auth_mode).toBe("headers");
+    expect(findUpdate() && "headers" in (findUpdate()?.body ?? {})).toBe(false);
   });
 
   it("keeps the list view masked after the dialog save cycle", async () => {

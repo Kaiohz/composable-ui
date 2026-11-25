@@ -2,6 +2,7 @@ import type {
   RegisteredMcpServer,
   McpServerInput,
   McpServerUpdateInput,
+  McpServerValidateInput,
   McpServerValidationResult,
 } from "@/domain/entities/mcpServer/registeredMcpServer";
 
@@ -25,6 +26,10 @@ export interface McpRegistryPort {
   update(name: string, input: McpServerUpdateInput): Promise<RegisteredMcpServer>;
   /** Delete a registered server. */
   delete(name: string): Promise<void>;
-  /** Validate (test connection) a server config; returns the tool count. */
-  validate(input: McpServerInput): Promise<McpServerValidationResult>;
+  /**
+   * Validate (test connection) a server config; returns the tool count. With
+   * `server_id` (edit mode) the backend merges the STORED entry's secrets
+   * into the candidate before probing (see {@link McpServerValidateInput}).
+   */
+  validate(input: McpServerValidateInput): Promise<McpServerValidationResult>;
 }

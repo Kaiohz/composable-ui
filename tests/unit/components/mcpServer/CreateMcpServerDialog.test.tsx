@@ -149,6 +149,19 @@ async function selectAuthMode(user: ReturnType<typeof userEvent.setup>, mode: "o
   await user.click(await screen.findByRole("option", { name: optionName }));
 }
 
+/**
+ * BUG-003: a destructive auth-mode switch on an EXISTING server is gated by
+ * the one-line confirm ("clears the stored headers/credential"); accept it.
+ * Create-mode switches need no confirm — nothing is stored.
+ */
+async function confirmAuthModeSwitch(user: ReturnType<typeof userEvent.setup>) {
+  const confirmDialog = await screen.findByRole("alertdialog");
+  await user.click(
+    within(confirmDialog).getByRole("button", { name: /switch mode/i }),
+  );
+  expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+}
+
 describe("CreateMcpServerDialog", () => {
   beforeEach(() => {
     requests = [];
@@ -600,6 +613,8 @@ describe("CreateMcpServerDialog", () => {
           );
 
           await selectAuthMode(user, "oauth");
+          // BUG-003: the destructive crossing is gated by the one-line confirm.
+          await confirmAuthModeSwitch(user);
           await user.click(screen.getByRole("button", { name: /save|create|submit/i }));
 
           await waitFor(() => {
@@ -625,6 +640,8 @@ describe("CreateMcpServerDialog", () => {
           );
 
           await selectAuthMode(user, "api-key");
+          // BUG-003: user_token → headers clears the user_token-era credential.
+          await confirmAuthModeSwitch(user);
           await user.click(screen.getByRole("button", { name: /save|create|submit/i }));
 
           await waitFor(() => {
@@ -650,6 +667,8 @@ describe("CreateMcpServerDialog", () => {
           );
 
           await selectAuthMode(user, "oauth");
+          // BUG-003: unknown → user_token wipes on save — confirm gates it.
+          await confirmAuthModeSwitch(user);
           await user.click(screen.getByRole("button", { name: /save|create|submit/i }));
 
           await waitFor(() => {
@@ -727,6 +746,10 @@ describe("CreateMcpServerDialog", () => {
           );
 
           await selectAuthMode(user, "api-key");
+          // BUG-003: the first boundary crossing (user_token → headers) is
+          // gated by the confirm; returning to the opened mode needs none —
+          // the opened-mode anchor means one destructive intent, one confirm.
+          await confirmAuthModeSwitch(user);
           await selectAuthMode(user, "oauth");
           await user.click(screen.getByRole("button", { name: /save|create|submit/i }));
 

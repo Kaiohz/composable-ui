@@ -104,8 +104,12 @@ const mcpRegistry: DocChapter = {
         txt(" (name/value pairs) for required HTTP headers, "),
         lbl("Env"),
         txt(" for values the server requires, and "),
-        lbl("Auth Token"),
-        txt(" for the credential when the server asks for one. OpenAPI entries do not use these."),
+        lbl("Authentication"),
+        txt(" to choose the mode — OAuth2 forwards the connected user's token, or use the "),
+        lbl("Headers"),
+        txt(" editor for a static credential (e.g. an"),
+        lbl("X-API-Key"),
+        txt(" header). OpenAPI entries do not use the env values."),
       ],
       [
         txt("Press "),
@@ -128,11 +132,11 @@ const mcpRegistry: DocChapter = {
       [
         lbl("Test connection"),
         txt(
-          " in the dialog re-checks the endpoint and reports the tool count or the exact connection error.",
+          " in the dialog re-checks the endpoint and reports the tool count or the exact connection error. When editing an existing server, the connection is checked with its stored credential — leave secret fields empty and the check still uses what is stored.",
         ),
       ],
       [
-        txt("The card lists the server's name, transport and creation details; press "),
+        txt("The card lists the server's name, auth mode, transport and creation details; press "),
         lbl("Edit"),
         txt(" to open "),
         lbl("Edit MCP Server"),
@@ -144,7 +148,7 @@ const mcpRegistry: DocChapter = {
         txt("Opening "),
         lbl("Edit"),
         txt(
-          " reveals the stored values on demand; leave a secret field empty and save if you only changed other fields.",
+          " never displays the stored secret values (they stay masked — leave a secret field empty and save to keep them if you only changed other fields). Switching the authentication mode of an existing server asks for a confirmation first, because it clears the stored credential.",
         ),
       ],
       [
@@ -163,9 +167,9 @@ const mcpRegistry: DocChapter = {
       "Type        : External",
       "Name        : weather",
       "URL         : https://mcp.example.com/mcp",
-      "Headers     : (none)",
+      "Authentication : API key — headers (the default)",
+      "Headers     : X-API-Key = YOUR_API_KEY      ← stand-in; type your own value",
       "Env         : (none)",
-      "Auth Token  : YOUR_API_KEY      ← stand-in; type your own value",
       "Test connection → ✓ 5 tools",
       'Create → the "weather" server is registered',
       'Then: in Agents → MCP Servers, add "weather" to an agent.',
@@ -193,8 +197,10 @@ const mcpRegistry: DocChapter = {
       ],
       [
         txt(
-          "A saved secret seems lost when reopening the form — secrets are revealed only on demand; keep fields empty to keep the stored values.",
+          "A saved secret seems lost when reopening the form — secret values are masked on purpose; keep the empty fields to keep the stored values. The ",
         ),
+        lbl("Test connection"),
+        txt(" check still validates with the stored credential."),
       ],
     ),
 

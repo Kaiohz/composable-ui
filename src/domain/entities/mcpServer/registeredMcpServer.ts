@@ -99,6 +99,56 @@ export type McpServerUpdateInput = {
   -readonly [K in keyof McpServerInput]?: McpServerInput[K];
 };
 
+/**
+ * Payload for a validate ("Test connection") call against the registry
+ * (`POST /servers/validate`).
+ *
+ * - Create mode: a FULL {@link McpServerInput} candidate — every field
+ *   present, `server_id` absent; the backend probes it unchanged.
+ * - Edit mode (`server_id` set): the backend MERGES the stored entry's
+ *   secrets into the candidate before probing, so untouched masked fields
+ *   (REQ-018) are OMITTED with the same partial semantics as
+ *   {@link McpServerUpdateInput} — a present-empty value would override its
+ *   merged stored counterpart and probe the entry WITHOUT its stored
+ *   credential (BUG-001: a false "unreachable"/401 on stored-credential
+ *   servers, since the masked projection never carries the secret).
+ */
+export type McpServerValidateInput = McpServerUpdateInput & {
+  /** Registry key of the stored entry whose secrets merge into the probe candidate (edit mode). */
+  readonly server_id?: string;
+};
+
+/**
+ * Would switching the edit dialog's authentication mode from
+ * {@link openedAuthMode} — the server's stored mode when the dialog opened —
+ * to {@link nextAuthMode} WIPE a stored credential on save (M-2)?
+ *
+ * Pure domain rule. The destructive boundary is `user_token`: entering it
+ * from any other stored mode (`"headers"`, or an UNKNOWN mode whose stored
+ * state the UI cannot see) clears the static credential on save
+ * (`authModeCrossed`), and leaving it for `"headers"` clears the
+ * user_token-era credential. `undefined → "headers"` is the ONE safe
+ * transition (M-3): the stored state is unknown and untouched — the update
+ * payload changes nothing stored. The UI cannot see stored secrets (masked
+ * projection, REQ-016/REQ-018), so the gate CONFIRMS only transitions that
+ * actually wipe on save; every destructive save path crosses one of them
+ * exactly once (the opened-mode anchor makes a revert-to-initial move a
+ * no-op rather than a second wipe).
+ */
+export function authModeSwitchWipesStoredCredential(
+  openedAuthMode: McpAuthMode | undefined,
+  nextAuthMode: McpAuthMode,
+): boolean {
+  if (nextAuthMode === openedAuthMode) {
+    return false;
+  }
+  if (nextAuthMode === "user_token") {
+    return openedAuthMode !== "user_token";
+  }
+  // next === "headers"
+  return openedAuthMode === "user_token";
+}
+
 /** Result of a validation (test connection) call. */
 export interface McpServerValidationResult {
   readonly tool_count: number;

@@ -4,9 +4,11 @@ import type {
   McpAuthMode,
   McpServerInput,
   McpServerUpdateInput,
+  McpServerValidateInput,
   McpSourceType,
   RegisteredMcpServer,
 } from "@/domain/entities/mcpServer/registeredMcpServer";
+import { authModeSwitchWipesStoredCredential } from "@/domain/entities/mcpServer/registeredMcpServer";
 import { useCreateMcpServer } from "@/application/hooks/mcpServer/useCreateMcpServer";
 import { useUpdateMcpServer } from "@/application/hooks/mcpServer/useUpdateMcpServer";
 import { useValidateMcpServer } from "@/application/hooks/mcpServer/useValidateMcpServer";
@@ -20,6 +22,16 @@ import {
   STRUCTURED_DIALOG_BODY_CLASS,
   STRUCTURED_DIALOG_CONTENT_CLASS,
 } from "@/application/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/application/components/ui/alert-dialog";
 import { cn } from "@/application/lib/utils";
 import {
   Select,
@@ -97,6 +109,12 @@ export function CreateMcpServerDialog({
    * static credential must not survive that crossing (M-2).
    */
   const [authModeCrossed, setAuthModeCrossed] = useState(false);
+  /**
+   * BUG-003: the auth mode picked in the confirm gate — non-null opens the
+   * destructive-transition confirm; the switch is applied ONLY on confirm
+   * (cancelled switches leave the state untouched).
+   */
+  const [pendingAuthMode, setPendingAuthMode] = useState<McpAuthMode | null>(null);
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -117,21 +135,41 @@ export function CreateMcpServerDialog({
     setEnv({});
     setAuthMode("headers");
     setAuthModeCrossed(false);
+    setPendingAuthMode(null);
     setValidationMessage(null);
     setValidationError(null);
   }
 
   /**
-   * Select handler: records a crossing whenever the picked mode differs from
-   * the one this dialog session opened with — the "did the user cross the
-   * auth-mode boundary at any point of THIS session?" gate consumed by
+   * Applies a picked auth mode (BUG-003 gate: only called directly for
+   * non-destructive switches, or after the destructive one was confirmed).
+   * Records a crossing whenever the applied mode differs from the one this
+   * dialog session opened with — the "did the user cross the auth-mode
+   * boundary at any point of THIS session?" gate consumed by
    * {@link buildUpdateInput}.
    */
-  function handleAuthModeChange(next: McpAuthMode) {
+  function applyAuthMode(next: McpAuthMode) {
     setAuthMode(next);
     if (next !== initialAuthMode) {
       setAuthModeCrossed(true);
     }
+    setPendingAuthMode(null);
+  }
+
+  /**
+   * Select handler: a switch on an EXISTING server whose save would WIPE the
+   * stored credential (M-2 boundary crossing — see
+   * {@link authModeSwitchWipesStoredCredential}) is gated by a one-line
+   * confirm before it is applied (BUG-003): a silent, irreversible credential
+   * wipe must not follow a single select change. Create mode has nothing
+   * stored — every switch applies immediately (REQ-006).
+   */
+  function handleAuthModeChange(next: McpAuthMode) {
+    if (isEdit && authModeSwitchWipesStoredCredential(initialAuthMode, next)) {
+      setPendingAuthMode(next);
+      return;
+    }
+    applyAuthMode(next);
   }
 
   function handleClose() {
@@ -140,10 +178,14 @@ export function CreateMcpServerDialog({
   }
 
   /**
-   * Full payload for create / validate. In `user_token` mode NO explicit
-   * credentials are sent — the backend injects the connected user's token
-   * (REQ-004); values typed before switching mode are ignored (the editors
-   * are hidden and carry no committed data).
+   * Full payload for create mode (submit + "Test connection"). In `user_token`
+   * mode NO explicit credentials are sent — the backend injects the connected
+   * user's token (REQ-004); values typed before switching mode are ignored
+   * (the editors are hidden and carry no committed data).
+   *
+   * The EDIT flow never uses this builder: its update goes through
+   * {@link buildUpdateInput} (partial semantics) and its probe through
+   * {@link buildValidateInput} (stored-secrets merge, BUG-001).
    */
   function buildInput(): McpServerInput {
     return {
@@ -151,9 +193,8 @@ export function CreateMcpServerDialog({
       url: isOpenapi ? null : url.trim(),
       headers: isUserToken ? {} : headers,
       env: isUserToken || isOpenapi ? {} : env,
-      // Create mode always has a resolved mode; the edit-mode Test connection
-      // is a server-side dry run (nothing is persisted), so `?? "headers"` is
-      // a harmless default when the read projection carried no auth_mode.
+      // Create mode always has a resolved ("headers" is the REQ-006 default)
+      // or explicitly picked auth_mode.
       auth_mode: authMode ?? "headers",
       source_type: sourceType,
       openapi_url: isOpenapi ? openapiUrl.trim() : null,
@@ -234,11 +275,54 @@ export function CreateMcpServerDialog({
     return input;
   }
 
+  /**
+   * Payload for the "Test connection" probe.
+   *
+   * - Create mode: the FULL candidate, sent as before (REQ-006 — the probe
+   *   is a stateless dry run of a fresh candidate, nothing is persisted).
+   * - Edit mode: `server_id` identifies the STORED entry and ONLY the
+   *   user-visible/changed fields travel (BUG-001) — the backend merges the
+   *   stored secrets into the candidate before probing, so the untouched
+   *   masked editors are sent as-is-OMITTED (a present-empty dict would
+   *   override the merged secrets and re-introduce the false
+   *   "unreachable"/401 on stored-credential servers, REQ-016/REQ-018).
+   *   An UNKNOWN stored mode is omitted too (M-3): the merged stored mode
+   *   reflects the real runtime, while a guessed `"headers"` would mis-probe
+   *   a `user_token` server. In `user_token` mode no static headers travel —
+   *   the backend injects the connected user's credential at probe time
+   *   (REQ-004); values typed before switching mode are ignored (the editors
+   *   are hidden and carry no committed data).
+   */
+  function buildValidateInput(): McpServerValidateInput {
+    if (!isEdit || !editServer) {
+      return buildInput();
+    }
+    const input: McpServerValidateInput = {
+      server_id: editServer.name,
+      name: name.trim(),
+      url: isOpenapi ? null : url.trim(),
+      source_type: sourceType,
+      openapi_url: isOpenapi ? openapiUrl.trim() : null,
+    };
+    if (authMode !== undefined) {
+      input.auth_mode = authMode;
+    }
+    if (!isUserToken) {
+      if (Object.keys(headers).length > 0) {
+        input.headers = headers;
+      }
+      if (!isOpenapi && Object.keys(env).length > 0) {
+        input.env = env;
+      }
+    }
+    return input;
+  }
+
   async function handleTestConnection() {
     setValidationMessage(null);
     setValidationError(null);
     try {
-      const result = await validateServer.mutateAsync(buildInput());
+      const result = await validateServer.mutateAsync(buildValidateInput());
       setValidationMessage(`✓ ${result.tool_count} tools`);
     } catch (error) {
       setValidationError(extractApiMessage(error));
@@ -455,6 +539,43 @@ export function CreateMcpServerDialog({
             {isPending ? "Saving…" : submitLabel}
           </Button>
         </div>
+
+        {/*
+          * BUG-003: the one-line confirm gating a destructive auth-mode switch
+          * on an EXISTING server (see {@link handleAuthModeChange}). Same
+          * AlertDialog treatment as the API-key revoke confirm
+          * (settings/ApiKeysCard.tsx); cancelling leaves the current mode.
+          */}
+        <AlertDialog
+          open={pendingAuthMode !== null}
+          onOpenChange={(o) => {
+            if (!o) setPendingAuthMode(null);
+          }}
+        >
+          <AlertDialogContent data-od-id="mcp-auth-switch-confirm">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Switch authentication mode?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Switching authentication clears the stored headers/credential of this server. This
+                cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-od-id="mcp-auth-switch-cancel">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="inline-flex h-10 items-center justify-center bg-danger text-fg border border-danger px-4 py-2 font-display uppercase tracking-[0.06em] text-sm hover:bg-danger/90"
+                data-od-id="mcp-auth-switch-confirm-action"
+                onClick={() => {
+                  if (pendingAuthMode !== null) {
+                    applyAuthMode(pendingAuthMode);
+                  }
+                }}
+              >
+                Switch mode
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
