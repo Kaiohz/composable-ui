@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { mcpRegistryApi } from "@/infrastructure/api/mcpServer/mcpRegistryApi";
-import type { McpServerInput } from "@/domain/entities/mcpServer/registeredMcpServer";
+import type { McpServerUpdateInput } from "@/domain/entities/mcpServer/registeredMcpServer";
 
 /**
  * Update an existing MCP server. Invalidates the `["mcp-registry"]` query on
@@ -10,7 +10,7 @@ export function useUpdateMcpServer() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ name, input }: { name: string; input: McpServerInput }) =>
+    mutationFn: ({ name, input }: { name: string; input: McpServerUpdateInput }) =>
       mcpRegistryApi.update(name, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mcp-registry"] });

@@ -27,6 +27,76 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("McpRegistryPage registered server cards (BUG-002 auth-mode badge)", () => {
+  it("renders the auth-mode badge on registered server cards — OAuth2 / API key / UNKNOWN when the echo is absent", async () => {
+    const userTokenServer: RegisteredMcpServer = {
+      ...registeredServer,
+      name: "oauth-server",
+      auth_mode: "user_token",
+    };
+    const headersServer: RegisteredMcpServer = {
+      ...registeredServer,
+      name: "api-key-server",
+      auth_mode: "headers",
+    };
+    // M-3 rollout skew: the echo is absent — the mode is UNKNOWN, never
+    // guessed (a guessed "headers" would misrepresent a user_token server).
+    const unknownModeServer: RegisteredMcpServer = { ...registeredServer };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          apiBaseUrl: "http://api.test.com",
+          wsBaseUrl: "ws://api.test.com",
+          ragApiBaseUrl: "https://ragany.test.com",
+          mcpApiBaseUrl: "",
+          oauth2ProxyUrl: "",
+          logtoUrl: "",
+          logtoAppId: "",
+          // Same built-in list as the sibling test below: the config
+          // repository is a module singleton cached across tests in THIS
+          // file (staleTime: Infinity), so both stubs must agree regardless
+          // of run order.
+          builtInMcpServers: [
+            {
+              name: "raganything-files",
+              url: "https://ragany.test.com/files/mcp",
+              transport: "http",
+            },
+            {
+              name: "raganything-classical",
+              url: "https://ragany.test.com/classical/mcp",
+              transport: "http",
+            },
+          ],
+        }),
+      }),
+    );
+    mcpApiClient.defaults.adapter = vi.fn(async (config) => ({
+      data: [userTokenServer, headersServer, unknownModeServer],
+      status: 200,
+      statusText: "OK",
+      headers: {},
+      config,
+    }));
+
+    renderWithProviders(<McpRegistryPage />, { initialEntries: ["/mcp-registry"] });
+
+    await screen.findByText("oauth-server");
+
+    const badgeFor = (cardName: string) =>
+      document.querySelector(
+        `[data-od-id="mcp-server-card-${cardName}"] [data-od-id="mcp-auth-mode-badge"]`,
+      );
+
+    expect(badgeFor("oauth-server")?.textContent).toMatch(/oauth2/i);
+    expect(badgeFor("api-key-server")?.textContent).toMatch(/api key/i);
+    expect(badgeFor("weather")?.textContent).toMatch(/unknown/i);
+  });
+});
+
 describe("McpRegistryPage built-in MCP servers", () => {
   it("displays the built-in Composable Agents and RagAnything MCP servers without changing other MCP servers", async () => {
     // Arrange — the deployed config predates the two newest built-in servers.

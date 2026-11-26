@@ -1,6 +1,8 @@
 import type {
   RegisteredMcpServer,
   McpServerInput,
+  McpServerUpdateInput,
+  McpServerValidateInput,
   McpServerValidationResult,
 } from "@/domain/entities/mcpServer/registeredMcpServer";
 import type { McpRegistryPort } from "@/domain/ports/mcpServer/mcpRegistryPort";
@@ -38,7 +40,11 @@ export const mcpRegistryApi: McpRegistryPort = {
     return response.data;
   },
 
-  async update(name: string, input: McpServerInput): Promise<RegisteredMcpServer> {
+  /**
+   * Update an existing server (partial semantics: keys absent from the input
+   * preserve the stored secrets). Returns the masked entry.
+   */
+  async update(name: string, input: McpServerUpdateInput): Promise<RegisteredMcpServer> {
     const response = await mcpApiClient.put<RegisteredMcpServer>(
       `${BASE}/${encodeURIComponent(name)}`,
       input,
@@ -50,7 +56,13 @@ export const mcpRegistryApi: McpRegistryPort = {
     await mcpApiClient.delete(`${BASE}/${encodeURIComponent(name)}`);
   },
 
-  async validate(input: McpServerInput): Promise<McpServerValidationResult> {
+  /**
+   * Validate (test connection) a server config; the payload is forwarded
+   * as-is. `server_id` (edit mode) selects the stored entry whose secrets
+   * the backend merges into the candidate before probing (BUG-001); the
+   * create-mode candidate carries no `server_id` and probes unchanged.
+   */
+  async validate(input: McpServerValidateInput): Promise<McpServerValidationResult> {
     const response = await mcpApiClient.post<McpServerValidationResult>(`${BASE}/validate`, input);
     return response.data;
   },

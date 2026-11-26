@@ -9,7 +9,6 @@ import { useDeleteMcpServer } from "@/application/hooks/mcpServer/useDeleteMcpSe
 import { useConfig } from "@/application/hooks/config/useConfig";
 import type { BuiltInMcpServer } from "@/domain/entities/config/appConfig";
 import { McpTransportType } from "@/domain/entities/agent/mcpServerConfig";
-import { mcpRegistryApi } from "@/infrastructure/api/mcpServer/mcpRegistryApi";
 import { extractApiMessage } from "@/infrastructure/api/store/storeApi";
 import type { RegisteredMcpServer } from "@/domain/entities/mcpServer/registeredMcpServer";
 import { Badge } from "@/application/components/ui/badge";
@@ -49,18 +48,17 @@ export default function McpRegistryPage() {
       created_at: "",
       updated_at: "",
       openapi_url: null,
+      auth_mode: "headers",
     });
     setCreateDialogOpen(true);
   }
 
-  async function openEdit(server: RegisteredMcpServer) {
-    try {
-      const revealed = await mcpRegistryApi.reveal(server.name);
-      setEditServer(revealed);
-    } catch (err) {
-      toast.error(`Could not load server details: ${extractApiMessage(err)}`);
-      setEditServer(server);
-    }
+  function openEdit(server: RegisteredMcpServer) {
+    // REQ-016: the dialog opens from the MASKED projection — reveal() is never
+    // called automatically. Untouched secret fields are omitted on save (the
+    // backend partial update preserves them); the masked placeholder signals
+    // "leave empty to keep".
+    setEditServer(server);
     setCreateDialogOpen(true);
   }
 

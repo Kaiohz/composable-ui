@@ -112,6 +112,27 @@ describe("RegisteredMcpServer entity", () => {
     expect(externalEntry.openapi_url).toBeNull();
   });
 
+  it("treats auth_mode as OPTIONAL on the read projection (M-3: absent until the registry echoes it)", () => {
+    // A masked entry from an older registry wire: no auth_mode echoed — the
+    // field is unknown, not "headers". Write payloads (McpServerInput) keep
+    // the field required; only the READ projection is optional.
+    const maskedWithoutEcho: RegisteredMcpServer = {
+      name: "weather",
+      transport: McpTransportType.HTTP,
+      url: "https://example.com/mcp",
+      headers: {},
+      env: {},
+      auth_token: null,
+      tool_count: 5,
+      created_at: "2026-04-06T10:00:00Z",
+      updated_at: "2026-04-06T10:00:00Z",
+      source_type: "external",
+      openapi_url: null,
+    };
+
+    expect(maskedWithoutEcho.auth_mode).toBeUndefined();
+  });
+
   it("accepts McpServerInput with source_type and openapi_url for openapi servers", () => {
     const openapiInput: McpServerInput = {
       name: "petstore",
