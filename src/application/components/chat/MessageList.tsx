@@ -144,7 +144,7 @@ export default function MessageList({
   const resolvedEmptyMessage =
     emptyMessage ??
     (readOnly ? "This thread has no recorded events." : "Send a message to start the conversation");
-  const { data: threadHistory, isLoading } = useThreadHistory(threadId);
+  const { data: threadHistory, isLoading, isFetching } = useThreadHistory(threadId);
   const streamingTurn = useChatStore((s) => s.streamingTurn);
   const isStreaming = useChatStore((s) => s.isStreaming);
   const pendingUserMessage = useChatStore((s) => s.pendingUserMessage);
@@ -175,13 +175,31 @@ export default function MessageList({
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+    // While streaming (or with a pending user bubble) the scroll ALWAYS
+    // follows the latest content — the composer is the focus, reading older
+    // messages is not the current intent. Otherwise the smart rule applies:
+    // follow only when the user already sits near the bottom.
+    if (isStreaming || pendingUserMessage !== null) {
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
+      return;
+    }
     const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
     if (isNearBottom) {
       requestAnimationFrame(() => {
         el.scrollTop = el.scrollHeight;
       });
     }
-  }, [entries, streamingTurn, pendingUserMessage, error]);
+  }, [
+    entries,
+    streamingTurn,
+    pendingUserMessage,
+    error,
+    isStreaming,
+    deferredParentContent,
+    deferredParentThinking,
+  ]);
 
   if (isLoading) {
     return (
@@ -256,7 +274,11 @@ export default function MessageList({
           />
         )}
 
-        {isStreaming && streamingTurn && (
+        {/* The streamed turn STAYS rendered while the history refetch is in
+            flight after the stream completes: dropping it on isStreaming=false
+            alone made the message disappear for one frame (history swap) —
+            the flicker. It unmounts only once the refetch resolves. */}
+        {(isStreaming || isFetching) && streamingTurn && (
           <div className="animate-chat-msg-enter flex gap-3">
             <div
               className="flex h-9 w-9 shrink-0 items-center justify-center border border-border bg-accent font-display text-xs uppercase text-accent-on"

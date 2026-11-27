@@ -18,4 +18,11 @@ export interface ChatRequest {
   reason?: string;
   edits?: Record<string, unknown>;
   decisions?: HitlDecisionInput[];
+  /**
+   * Thinking level for THIS turn (chat composer selector). Omitted → thinking
+   * off: the backend applies no reasoning payload to the LLM call.
+   */
+  reasoning_effort?: ReasoningEffort;
 }
+
+export type ReasoningEffort = "low" | "medium" | "high";

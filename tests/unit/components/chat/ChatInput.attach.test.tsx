@@ -248,3 +248,57 @@ describe("ChatInput — client-side size guard", () => {
     expect(mockStream).not.toHaveBeenCalled();
   });
 });
+
+describe("Builtin capabilities + thinking level selector", () => {
+  type AgentLike = { capabilities?: { files_mcp?: boolean }; mcp_servers?: unknown[] };
+
+  const builtinAgent: AgentLike = {
+    capabilities: { files_mcp: true },
+    mcp_servers: [],
+  };
+
+  it("documents are accepted when the backend declares capabilities.files_mcp", () => {
+    // The built-in assistant mounts its Files MCP SERVER-side: the
+    // server-declared capability flag replaces the (forced empty) mcp_servers.
+    const { container } = renderChatInput({ agentConfig: builtinAgent as never });
+
+    const input = fileInput();
+    expect(input.accept).toContain("application/pdf");
+    expect(container.querySelector('[data-od-id="chat-attach-hint"]')).toBeNull();
+  });
+
+  it("exposes the thinking-level selector and sends the selected effort", async () => {
+    const user = userEvent.setup();
+    // Persisted store starts at "off" — reset it for this test's assertion.
+    localStorage.setItem("composable-ui-thinking", JSON.stringify({ state: { level: "high" }, version: 0 }));
+    const { useThinkingLevelStore } = await import("@/application/stores/useThinkingLevelStore");
+    useThinkingLevelStore.setState({ level: "high" });
+
+    renderChatInput({ agentConfig: agentWithoutMcp() });
+
+    const select = screen.getByTestId("chat-thinking-select") as HTMLSelectElement;
+    expect((select as unknown as { value: string }).value).toBe("high");
+
+    const textarea = screen.getByRole("textbox", { name: /chat message input/i });
+    await user.type(textarea, "hello");
+    const send = screen.getByRole("button", { name: /send/i });
+    await user.click(send);
+
+    await waitFor(() => {
+      expect(mockStream).toHaveBeenCalledTimes(1);
+    });
+    const payload = mockStream.mock.calls[0][0] as { reasoning_effort?: string };
+    expect(payload.reasoning_effort).toBe("high");
+
+    // "off" omits the field entirely (backend applies no reasoning payload).
+    useThinkingLevelStore.setState({ level: "off" });
+    mockStream.mockClear();
+    await user.type(textarea, "again");
+    await user.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() => {
+      expect(mockStream).toHaveBeenCalledTimes(1);
+    });
+    expect((mockStream.mock.calls[0][0] as { reasoning_effort?: string }).reasoning_effort).toBeUndefined();
+    useThinkingLevelStore.setState({ level: "off" });
+  });
+});
