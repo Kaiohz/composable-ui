@@ -11,6 +11,10 @@ import { Button } from "@/application/components/ui/button";
 import { cn } from "@/application/lib/utils";
 import { useStreamChat } from "@/application/hooks/chat/useStreamChat";
 import {
+  useThinkingLevelStore,
+  type ThinkingLevel,
+} from "@/application/stores/useThinkingLevelStore";
+import {
   useChatStore,
   type ComposerAttachment,
   type ComposerBackup,
@@ -206,11 +210,18 @@ export default function ChatInput({ threadId, agentConfig = null }: Readonly<Cha
   const isStreaming = useChatStore((s) => s.isStreaming);
   const composerBackup = useChatStore((s) => s.composerBackup);
   const composerRestoredDraft = useChatStore((s) => s.composerRestoredDraft);
+  // Composer thinking-level preference (persisted per user, sent on submit).
+  const thinkingLevel = useThinkingLevelStore((s) => s.level);
+  const setThinkingLevel = useThinkingLevelStore((s) => s.setLevel);
 
   // REQ-062: images are ALWAYS accepted; documents require a ``/files/mcp``
   // MCP HTTP server on the agent config (client mirror — the backend stays
-  // the authority, NFR-010).
-  const documentsAllowed = documentsAllowedWithFilesMcp(agentConfig?.mcp_servers);
+  // the authority, NFR-010). The built-in assistant mounts its Files MCP
+  // SERVER-side (dynamic toolset forced out of ``mcp_servers``) — the
+  // backend-declared ``capabilities.files_mcp`` flag carries that truth.
+  const documentsAllowed =
+    agentConfig?.capabilities?.files_mcp === true ||
+    documentsAllowedWithFilesMcp(agentConfig?.mcp_servers);
 
   // Refs are synced post-commit (never written during render).
   useEffect(() => {
@@ -370,6 +381,9 @@ export default function ChatInput({ threadId, agentConfig = null }: Readonly<Cha
       const request: ChatRequest = payloads.length
         ? { ...(trimmed && { message: trimmed }), attachments: payloads }
         : { message: trimmed };
+      if (thinkingLevel !== "off") {
+        request.reasoning_effort = thinkingLevel;
+      }
       const pendingMeta = payloads.length ? pendingAttachments.map(toDisplayAttachment) : undefined;
 
       // Single-argument call for the plain-text case keeps the legacy
@@ -437,6 +451,23 @@ export default function ChatInput({ threadId, agentConfig = null }: Readonly<Cha
             className="flex-1 resize-none border-0 bg-transparent px-1 py-1 text-sm text-fg placeholder:text-muted focus:outline-none focus-visible:shadow-none disabled:opacity-50"
           />
           <div className="flex items-center gap-1">
+            {/* Thinking level (persisted composer preference): "off" omits
+                the field entirely — the backend applies no reasoning payload.
+                Disabled while streaming: the level is pinned per turn. */}
+            <select
+              data-od-id="chat-thinking-select"
+              value={thinkingLevel}
+              onChange={(e) => setThinkingLevel(e.target.value as ThinkingLevel)}
+              disabled={isStreaming || isEncoding}
+              aria-label="Thinking level"
+              className="max-h-7 cursor-pointer rounded-sm border-0 bg-transparent px-1 py-1 font-mono text-xs text-muted focus:outline-none"
+              title="Thinking level (applies to reasoning-capable models)"
+            >
+              <option value="off">Thinking off</option>
+              <option value="low">Thinking low</option>
+              <option value="medium">Thinking medium</option>
+              <option value="high">Thinking high</option>
+            </select>
             <Button
               type="button"
               variant="ghost"

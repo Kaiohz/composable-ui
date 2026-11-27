@@ -81,4 +81,12 @@ export interface AgentConfig {
   is_builtin?: boolean;
   /** `true` when the built-in assistant resolves to the user's override. */
   is_customized?: boolean;
+  /**
+   * Server-declared capability flags (built-in assistant only): the dynamic
+   * server-side toolset (mcp-raganything mounts) is FORCED out of
+   * `mcp_servers` by the backend projection, so the UI cannot derive the
+   * document-attachment policy from the config alone. `files_mcp: true`
+   * opens the document picker (backend upload policy stays authoritative).
+   */
+  capabilities?: { files_mcp?: boolean };
 }
