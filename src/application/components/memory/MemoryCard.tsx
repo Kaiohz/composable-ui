@@ -5,6 +5,11 @@ import { ResourceCard, ResourceCardFooter } from "@/application/components/ui/re
 interface MemoryCardProps {
   readonly name: string;
   readonly preview: string;
+  /**
+   * Invoked with the card's filename when Configure is clicked. The memories
+   * grid wraps this callback and swaps in the EXACT stored path (the name is
+   * display-only there), so `name` is informational at this boundary.
+   */
   readonly onConfigure: (name: string) => void;
 }
 

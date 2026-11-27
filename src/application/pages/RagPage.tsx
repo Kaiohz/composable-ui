@@ -10,6 +10,7 @@ import QueryPanel from "@/application/components/rag/QueryPanel";
 import FileContentPanel from "@/application/components/rag/FileContentPanel";
 import CreateFolderDialog from "@/application/components/rag/CreateFolderDialog";
 import ConfirmDeleteDialog from "@/application/components/rag/ConfirmDeleteDialog";
+import SpaceSelector from "@/application/components/shared/SpaceSelector";
 import { Button } from "@/application/components/ui/button";
 import { useFolders } from "@/application/hooks/rag/useFolders";
 import { useFiles } from "@/application/hooks/rag/useFiles";
@@ -20,9 +21,9 @@ import { useCreateFolder } from "@/application/hooks/rag/useCreateFolder";
 import { useDeleteFile } from "@/application/hooks/rag/useDeleteFile";
 import { useDeleteFolder } from "@/application/hooks/rag/useDeleteFolder";
 import { useUploadFiles, extractFilesFromDrop } from "@/application/hooks/rag/useUploadFiles";
-import { resolveWorkingDir } from "@/application/lib/workingDir";
 import { cn } from "@/application/lib/utils";
 import { trimTrailingSlashes } from "@/domain/entities/rag/fileEntry";
+import { PERSONAL_SLUG } from "@/domain/entities/space/spaceRecord";
 
 const DEFAULT_CHUNK_SIZE = 1000;
 const DEFAULT_CHUNK_OVERLAP = 200;
@@ -38,9 +39,29 @@ function segmentsToPrefix(segments: string[], upToIndex: number): string {
   return segments.slice(0, upToIndex + 1).join("/") + "/";
 }
 
+/**
+ * The scope-relative object path of a listed file (mcp-raganything composes
+ * the storage key server-side, REQ-003). The explorer lists NON-recursively
+ * under the current in-space prefix, so every returned object (full bucket
+ * key) maps to `<in-space prefix>/<basename>` — the shape `delete_file` and
+ * `read_file` expect from the client.
+ */
+function toRelativeObjectPath(inSpacePrefix: string, objectName: string): string {
+  const basename = objectName.split("/").at(-1) ?? objectName;
+  return `${inSpacePrefix}${basename}`;
+}
+
 export default function RagPage() {
   const [activeTab, setActiveTab] = useState<"browse" | "query">("browse");
+  // Space scope (REQ-021): `personal` by default, persisted for the page
+  // lifetime across tab switches. The selected slug travels to
+  // mcp-raganything via `X-Composable-Agent`; the backend composes the
+  // storage scope from the authenticated identity, so every path on this page
+  // stays RELATIVE to the selected space.
+  const [spaceSlug, setSpaceSlug] = useState(PERSONAL_SLUG);
+  // In-space navigation prefix (scope-relative, e.g. "" or "zeta-docs/").
   const [currentPrefix, setCurrentPrefix] = useState("");
+  // Project-level working directory (scope-relative, e.g. "" or "p1").
   const [workingDir, setWorkingDir] = useState("");
 
   const [fileContentOpen, setFileContentOpen] = useState(false);
@@ -52,7 +73,7 @@ export default function RagPage() {
 
   const classicalIndexFile = useClassicalIndexFile();
   const classicalIndexFolder = useClassicalIndexFolder();
-  const readFile = useReadFile();
+  const readFile = useReadFile(spaceSlug);
   const createFolder = useCreateFolder();
   const deleteFile = useDeleteFile();
   const deleteFolder = useDeleteFolder();
@@ -61,10 +82,18 @@ export default function RagPage() {
 
   const segments = useMemo(() => prefixToSegments(currentPrefix), [currentPrefix]);
 
-  const foldersQuery = useFolders(currentPrefix);
-  const filesQuery = useFiles(currentPrefix, false);
+  const foldersQuery = useFolders(currentPrefix, spaceSlug);
+  const filesQuery = useFiles(currentPrefix, false, spaceSlug);
 
-  const workspaceFoldersQuery = useFolders("");
+  const workspaceFoldersQuery = useFolders("", spaceSlug);
+
+  const handleSpaceChange = useCallback((slug: string) => {
+    setSpaceSlug(slug);
+    setCurrentPrefix("");
+    // A project chosen in the previous space must not leak into the new one:
+    // it would target {user_id}/{new_slug}/{old_project}/ server-side.
+    setWorkingDir("");
+  }, []);
 
   const handleUploadComplete = useCallback(() => {
     foldersQuery.refetch();
@@ -84,7 +113,7 @@ export default function RagPage() {
       if (files.length === 0) return;
 
       uploadFiles.mutate(
-        { prefix: currentPrefix, files },
+        { prefix: currentPrefix, files, agentSlug: spaceSlug },
         {
           onSuccess: (data) => {
             if (data.kind === "all-ok") {
@@ -102,7 +131,7 @@ export default function RagPage() {
         },
       );
     },
-    [currentPrefix, uploadFiles, handleUploadComplete],
+    [currentPrefix, spaceSlug, uploadFiles, handleUploadComplete],
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -134,39 +163,41 @@ export default function RagPage() {
     }
   };
 
+  // Listed folder prefixes are already scope-relative (REQ-003).
   const handleFolderClick = (prefix: string) => {
     setCurrentPrefix(prefix);
   };
 
   const handleFileRead = (objectName: string) => {
-    readFile.mutate(objectName);
+    readFile.mutate(toRelativeObjectPath(currentPrefix, objectName));
     setFileContentOpen(true);
   };
 
   const handleFileIndexClassical = (objectName: string) => {
-    const dir = resolveWorkingDir(currentPrefix, workingDir);
     classicalIndexFile.mutate({
-      fileName: objectName,
-      workingDir: dir,
+      fileName: toRelativeObjectPath(currentPrefix, objectName),
+      workingDir: workingDir || currentPrefix,
       chunkSize: DEFAULT_CHUNK_SIZE,
       chunkOverlap: DEFAULT_CHUNK_OVERLAP,
+      agentSlug: spaceSlug,
     });
   };
 
   const handleFolderIndexClassical = (prefix: string) => {
-    const dir = resolveWorkingDir(prefix, workingDir);
     classicalIndexFolder.mutate({
-      workingDir: dir,
+      // Folder prefixes arrive scope-relative (backend relativize_folders), so
+      // the backend composes {user_id}/{agent_slug}/{prefix}/ (REQ-006).
+      workingDir: prefix,
       recursive: true,
       chunkSize: DEFAULT_CHUNK_SIZE,
       chunkOverlap: DEFAULT_CHUNK_OVERLAP,
+      agentSlug: spaceSlug,
     });
   };
 
   const handleCreateFolder = (name: string) => {
-    const prefix = currentPrefix + name;
     createFolder.mutate(
-      { prefix },
+      { prefix: currentPrefix + name, agentSlug: spaceSlug },
       {
         onSuccess: () => {
           toast.success("Folder created");
@@ -200,10 +231,20 @@ export default function RagPage() {
       toast.error(error.message);
     };
     if (target.kind === "file") {
-      const dir = resolveWorkingDir(currentPrefix, workingDir);
-      deleteFile.mutate({ objectName: target.name, workingDir: dir }, { onSuccess, onError });
+      // The object path is scope-relative; working_dir targets the vector
+      // cascade at the project namespace the UI indexed into (relative too).
+      deleteFile.mutate(
+        {
+          objectName: toRelativeObjectPath(currentPrefix, target.name),
+          workingDir: workingDir || currentPrefix,
+          agentSlug: spaceSlug,
+        },
+        { onSuccess, onError },
+      );
     } else {
-      deleteFolder.mutate({ prefix: target.name }, { onSuccess, onError });
+      // Folder prefixes arrive scope-relative (REQ-003): the backend composes
+      // {user_id}/{agent_slug}/{prefix}/ and cascades recursively.
+      deleteFolder.mutate({ prefix: target.name, agentSlug: spaceSlug }, { onSuccess, onError });
     }
   };
 
@@ -216,6 +257,10 @@ export default function RagPage() {
     <AppShell>
       <div data-od-id="rag-view" className="flex-1 overflow-y-auto bg-bg">
         <div className="flex flex-col gap-6 p-4 md:p-8">
+          {/* Space selector header bar (REQ-021/REQ-026): above the explorer
+              AND above the project-level workspace control of the Query tab. */}
+          <SpaceSelector value={spaceSlug} onChange={handleSpaceChange} />
+
           <div className="flex flex-wrap items-start justify-between gap-4">
             <p className="max-w-md font-body text-sm text-muted">
               Browse and manage your RAG knowledge base.
@@ -231,7 +276,11 @@ export default function RagPage() {
                   <FolderPlus className="h-4 w-4" aria-hidden="true" />
                   New Folder
                 </Button>
-                <UploadButton prefix={currentPrefix} onUploadComplete={handleUploadComplete} />
+                <UploadButton
+                  prefix={currentPrefix}
+                  agentSlug={spaceSlug}
+                  onUploadComplete={handleUploadComplete}
+                />
               </div>
             )}
           </div>
@@ -304,6 +353,7 @@ export default function RagPage() {
               workingDir={workingDir}
               onWorkingDirChange={setWorkingDir}
               folders={folderSuggestions}
+              agentSlug={spaceSlug}
             />
           )}
         </div>

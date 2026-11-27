@@ -4,7 +4,7 @@ import { getDisplayName, getInitials, type UserProfile } from "@/domain/entities
 describe("getDisplayName", () => {
   it("returns the name when present", () => {
     const profile: UserProfile = {
-      userId: "u1",
+      user_id: "u1",
       name: "Jane Doe",
       username: "jane",
       email: "j@x.com",
@@ -13,17 +13,17 @@ describe("getDisplayName", () => {
   });
 
   it("falls back to username when name is blank", () => {
-    const profile: UserProfile = { userId: "u1", name: "  ", username: "jane", email: "j@x.com" };
+    const profile: UserProfile = { user_id: "u1", name: "  ", username: "jane", email: "j@x.com" };
     expect(getDisplayName(profile)).toBe("jane");
   });
 
   it("falls back to the email local part when name and username are absent", () => {
-    const profile: UserProfile = { userId: "u1", email: "jane@example.com" };
+    const profile: UserProfile = { user_id: "u1", email: "jane@example.com" };
     expect(getDisplayName(profile)).toBe("jane");
   });
 
-  it("falls back to userId when no profile field is available", () => {
-    const profile: UserProfile = { userId: "user-123" };
+  it("falls back to user_id when no profile field is available", () => {
+    const profile: UserProfile = { user_id: "user-123" };
     expect(getDisplayName(profile)).toBe("user-123");
   });
 

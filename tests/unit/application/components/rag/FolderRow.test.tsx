@@ -11,7 +11,9 @@ describe("FolderRow", () => {
   it("renders_delete_button_when_onDelete_provided", () => {
     render(<FolderRow {...baseProps} onDelete={() => {}} />);
 
-    expect(screen.getByRole("button", { name: /delete docs/i })).toBeInTheDocument();
+    // The folder row's accessible delete label is name-free ("Delete folder"):
+    // the row-opening control must stay the unique folder-name match (N1).
+    expect(screen.getByRole("button", { name: /delete folder/i })).toBeInTheDocument();
   });
 
   it("does_not_render_delete_button_when_no_onDelete", () => {
@@ -30,7 +32,7 @@ describe("FolderRow", () => {
       </div>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /delete docs/i }));
+    fireEvent.click(screen.getByRole("button", { name: /delete folder/i }));
 
     expect(onDelete).toHaveBeenCalledTimes(1);
   });

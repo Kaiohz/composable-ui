@@ -2,6 +2,8 @@ import { useState, type SyntheticEvent } from "react";
 import { toast } from "sonner";
 import { useCreateMemory } from "@/application/hooks/memory/useCreateMemory";
 import { extractApiMessage } from "@/infrastructure/api/store/storeApi";
+import { memoriesNamespacePrefix } from "@/domain/entities/space/memoryPaths";
+import { PERSONAL_SLUG } from "@/domain/entities/space/spaceRecord";
 import {
   Dialog,
   DialogContent,
@@ -20,18 +22,31 @@ import { cn } from "@/application/lib/utils";
 interface CreateMemoryDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
+  /**
+   * Target space agent slug (REQ-022): personal is the flat `/memories/`
+   * namespace, otherwise the memory is created inside the agent scope.
+   */
+  readonly spaceSlug?: string;
 }
 
 const MEMORY_FORM_ID = "memory-create-form";
 
 /**
- * Dialog to create a new memory file: a name (becomes
- * `/memories/{name}.md`) and a markdown body. No frontmatter for memories.
+ * Dialog to create a new memory file in the TARGET space: a name (becomes
+ * `/memories/{name}.md` in the personal space, `/memories/{agent_slug}/{name}.md`
+ * in an agent scope) and a markdown body. No frontmatter for memories.
  */
-export function CreateMemoryDialog({ open, onOpenChange }: Readonly<CreateMemoryDialogProps>) {
+export function CreateMemoryDialog({
+  open,
+  onOpenChange,
+  spaceSlug = PERSONAL_SLUG,
+}: Readonly<CreateMemoryDialogProps>) {
   const [name, setName] = useState("");
   const [content, setContent] = useState("");
   const createMemory = useCreateMemory();
+  // REQ-022 — the dialog DISPLAYS the target space and creates inside it.
+  const targetPathLabel = `${memoriesNamespacePrefix(spaceSlug)}<name>.md`;
+  const directory = spaceSlug === PERSONAL_SLUG ? "" : spaceSlug;
 
   function handleClose() {
     setName("");
@@ -47,7 +62,7 @@ export function CreateMemoryDialog({ open, onOpenChange }: Readonly<CreateMemory
       return;
     }
     createMemory.mutate(
-      { name: trimmedName, content },
+      { name: trimmedName, content, directory },
       {
         onSuccess: () => {
           toast.success("Memory created successfully");
@@ -72,8 +87,11 @@ export function CreateMemoryDialog({ open, onOpenChange }: Readonly<CreateMemory
           <DialogHeader className="space-y-1.5">
             <DialogTitle className="font-display text-lg">Create Memory</DialogTitle>
             <DialogDescription className="text-sm text-muted">
-              Create a markdown memory file at{" "}
-              <span className="font-mono text-fg-2">/memories/&lt;name&gt;.md</span>.
+              Create a markdown memory file in the{" "}
+              <span className="font-mono text-fg-2">
+                {spaceSlug === PERSONAL_SLUG ? "Personal" : spaceSlug}
+              </span>{" "}
+              space at <span className="font-mono text-fg-2">{targetPathLabel}</span>.
             </DialogDescription>
           </DialogHeader>
         </div>

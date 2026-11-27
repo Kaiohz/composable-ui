@@ -4,15 +4,27 @@ import AppShell from "@/application/components/layout/AppShell";
 import MemoryGrid from "@/application/components/memory/MemoryGrid";
 import CreateMemoryDialog from "@/application/components/memory/CreateMemoryDialog";
 import MemoryViewer from "@/application/components/memory/MemoryViewer";
+import SpaceSelector from "@/application/components/shared/SpaceSelector";
 import { useStoreFiles } from "@/application/hooks/store/useStoreFiles";
+import { isDirectMemoryChild, memoriesNamespacePrefix } from "@/domain/entities/space/memoryPaths";
+import { PERSONAL_SLUG } from "@/domain/entities/space/spaceRecord";
 import { Badge } from "@/application/components/ui/badge";
 import { Button } from "@/application/components/ui/button";
 
 export default function MemoriesPage() {
+  const [spaceSlug, setSpaceSlug] = useState(PERSONAL_SLUG);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [viewerMemory, setViewerMemory] = useState<string | null>(null);
-  const { data: files } = useStoreFiles("/memories/");
-  const total = files?.length ?? 0;
+  // REQ-022: the grid and every page action operate within the selected
+  // space — flat `/memories/` for Personal, `/memories/{agent_slug}/` for an
+  // agent scope.
+  const memoriesPrefix = memoriesNamespacePrefix(spaceSlug);
+  const { data: files } = useStoreFiles(memoriesPrefix);
+  // The store listing is a startswith filter: count only DIRECT children of
+  // this namespace so the badge matches the grid (N2 parity).
+  const total = (files ?? []).filter((file) =>
+    isDirectMemoryChild(memoriesPrefix, file.path),
+  ).length;
 
   return (
     <AppShell>
@@ -20,10 +32,13 @@ export default function MemoriesPage() {
         className="memories-view flex flex-1 flex-col gap-6 overflow-y-auto bg-bg p-4 md:p-8"
         data-od-id="memories-view"
       >
+        {/* Space selector header bar (REQ-022/REQ-026): above the grid. */}
+        <SpaceSelector value={spaceSlug} onChange={setSpaceSlug} />
+
         <div className="flex flex-wrap items-start justify-between gap-4">
           <p className="max-w-md font-body text-sm text-muted">
-            Manage markdown memory files. Each memory lives at{" "}
-            <span className="font-mono text-fg-2">/memories/&lt;name&gt;.md</span> and can be
+            Manage markdown memory files within the selected space. Each memory lives at{" "}
+            <span className="font-mono text-fg-2">{memoriesPrefix}&lt;name&gt;.md</span> and can be
             referenced by agents.
           </p>
           <div className="flex items-center gap-3">
@@ -43,12 +58,20 @@ export default function MemoriesPage() {
         </div>
 
         <MemoryGrid
+          memoriesPrefix={memoriesPrefix}
           onCreateNew={() => setCreateDialogOpen(true)}
-          onConfigure={(name) => setViewerMemory(name)}
+          // The grid hands over the EXACT stored path — no basename
+          // reconstruction, so a same-named memory of another space can never
+          // be opened or deleted by mistake (N2).
+          onConfigure={setViewerMemory}
         />
       </div>
 
-      <CreateMemoryDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
+      <CreateMemoryDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        spaceSlug={spaceSlug}
+      />
       {viewerMemory && (
         <MemoryViewer
           memoryPath={viewerMemory}

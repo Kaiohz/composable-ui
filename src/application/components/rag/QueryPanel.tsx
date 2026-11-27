@@ -9,15 +9,24 @@ import { useClassicalQuery } from "@/application/hooks/rag/useClassicalQuery";
 import type { ClassicalQueryMode } from "@/domain/entities/rag/queryRequest";
 
 interface QueryPanelProps {
+  /**
+   * Project-level working directory, RELATIVE to the selected space (REQ-006).
+   * An empty value composes the scope root server-side, so it is a valid
+   * search target — the space selection itself is carried by the
+   * `X-Composable-Agent` header, not by this value.
+   */
   workingDir: string;
   onWorkingDirChange?: (value: string) => void;
   folders?: string[];
+  /** Selected space slug carried to mcp-raganything via `X-Composable-Agent`. */
+  agentSlug?: string;
 }
 
 export default function QueryPanel({
   workingDir,
   onWorkingDirChange = () => {},
   folders = [],
+  agentSlug,
 }: Readonly<QueryPanelProps>) {
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<ClassicalQueryMode>("vector");
@@ -34,7 +43,7 @@ export default function QueryPanel({
   const error = classicalQuery.error;
 
   function handleSearch() {
-    if (!workingDir || !query.trim()) return;
+    if (!query.trim()) return;
     classicalQuery.mutate({
       workingDir,
       query,
@@ -44,6 +53,7 @@ export default function QueryPanel({
       vectorDistanceThreshold,
       enableLlmJudge,
       mode,
+      agentSlug,
     });
   }
 
@@ -86,7 +96,7 @@ export default function QueryPanel({
           type="button"
           variant="default"
           onClick={handleSearch}
-          disabled={!workingDir || isLoading || !query.trim()}
+          disabled={isLoading || !query.trim()}
           data-od-id="rag-search"
         >
           {isLoading ? (

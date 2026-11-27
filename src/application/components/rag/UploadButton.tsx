@@ -5,14 +5,21 @@ import { Button } from "@/application/components/ui/button";
 import { useUploadFiles } from "@/application/hooks/rag/useUploadFiles";
 
 interface UploadButtonProps {
+  /** Scope-relative prefix (the backend composes the storage key, REQ-003). */
   prefix: string;
+  /** Selected space slug carried to mcp-raganything via `X-Composable-Agent`. */
+  agentSlug?: string;
   onUploadComplete?: () => void;
 }
 
 const ACCEPTED_EXTENSIONS =
   ".pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.md,.csv,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.html,.xml,.json,.rtf,.odt,.ods";
 
-export default function UploadButton({ prefix, onUploadComplete }: Readonly<UploadButtonProps>) {
+export default function UploadButton({
+  prefix,
+  agentSlug,
+  onUploadComplete,
+}: Readonly<UploadButtonProps>) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadFiles = useUploadFiles();
 
@@ -25,7 +32,9 @@ export default function UploadButton({ prefix, onUploadComplete }: Readonly<Uplo
     if (files.length === 0) return;
 
     uploadFiles.mutate(
-      { prefix, files },
+      // agentSlug is spread only when the caller selected a space, so the
+      // mutation variables stay identical for the header-less (personal) call.
+      { prefix, files, ...(agentSlug ? { agentSlug } : {}) },
       {
         onSuccess: (data) => {
           if (data.kind === "all-ok") {

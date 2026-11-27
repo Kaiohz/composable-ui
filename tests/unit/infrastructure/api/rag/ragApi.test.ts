@@ -159,6 +159,21 @@ describe("ragApi", () => {
       );
       expect(result).toEqual({ message: "File deleted" });
     });
+
+    it("sends working_dir EXPLICITLY EMPTY for a scope-root delete (never drops the param)", async () => {
+      vi.mocked(ragApiClient.delete).mockResolvedValue({
+        data: { message: "File deleted" },
+      });
+
+      await ragApi.deleteFile("report.md", "");
+
+      // "" is the scope-root namespace the file was indexed into; dropping
+      // working_dir would make the backend fall back to its legacy default
+      // and orphan the vectors.
+      expect(ragApiClient.delete).toHaveBeenCalledWith(
+        "/api/v1/files?object_name=report.md&working_dir=",
+      );
+    });
   });
 
   describe("deleteFolder", () => {
@@ -171,6 +186,28 @@ describe("ragApi", () => {
 
       expect(ragApiClient.delete).toHaveBeenCalledWith("/api/v1/files/folders?prefix=docs");
       expect(result).toEqual({ message: "Folder deleted" });
+    });
+  });
+
+  describe("scope header (X-Composable-Agent, adapter boundary)", () => {
+    it("sends the scope header when an agent slug is given", async () => {
+      vi.mocked(ragApiClient.get).mockResolvedValue({ data: [] });
+
+      await ragApi.listFiles("", false, "agent-zeta");
+
+      expect(ragApiClient.get).toHaveBeenCalledWith("/api/v1/files/list?prefix=&recursive=false", {
+        headers: { "X-Composable-Agent": "agent-zeta" },
+      });
+    });
+
+    it("sends NO config (and no header) when no agent slug is given", async () => {
+      vi.mocked(ragApiClient.get).mockResolvedValue({ data: [] });
+
+      await ragApi.listFiles("", false);
+
+      // The header-less call must stay byte-identical to the pre-feature wire
+      // shape: exactly one argument.
+      expect(ragApiClient.get).toHaveBeenCalledWith("/api/v1/files/list?prefix=&recursive=false");
     });
   });
 });
