@@ -8,6 +8,13 @@ import {
 } from "react";
 import { Paperclip, Send, Square } from "lucide-react";
 import { Button } from "@/application/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/application/components/ui/select";
 import { cn } from "@/application/lib/utils";
 import { useStreamChat } from "@/application/hooks/chat/useStreamChat";
 import {
@@ -454,20 +461,30 @@ export default function ChatInput({ threadId, agentConfig = null }: Readonly<Cha
             {/* Thinking level (persisted composer preference): "off" omits
                 the field entirely — the backend applies no reasoning payload.
                 Disabled while streaming: the level is pinned per turn. */}
-            <select
-              data-od-id="chat-thinking-select"
+            {/* Thinking level (persisted composer preference): "off" omits
+                the field entirely — the backend applies no reasoning payload.
+                Disabled while streaming: the level is pinned per turn. Radix
+                Select keeps the popup on-grid with the app design system. */}
+            <Select
               value={thinkingLevel}
-              onChange={(e) => setThinkingLevel(e.target.value as ThinkingLevel)}
+              onValueChange={(next) => setThinkingLevel(next as ThinkingLevel)}
               disabled={isStreaming || isEncoding}
-              aria-label="Thinking level"
-              className="h-8 cursor-pointer rounded-sm border border-border bg-surface px-2 text-xs text-fg hover:border-accent focus:outline-none focus:border-accent"
-              title="Thinking level (applies to reasoning-capable models)"
             >
-              <option value="off">Thinking off</option>
-              <option value="low">Thinking low</option>
-              <option value="medium">Thinking medium</option>
-              <option value="high">Thinking high</option>
-            </select>
+              <SelectTrigger
+                data-od-id="chat-thinking-select"
+                aria-label="Thinking level"
+                title="Thinking level (applies to reasoning-capable models)"
+                className="w-auto"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="off">Thinking off</SelectItem>
+                <SelectItem value="low">Thinking low</SelectItem>
+                <SelectItem value="medium">Thinking medium</SelectItem>
+                <SelectItem value="high">Thinking high</SelectItem>
+              </SelectContent>
+            </Select>
             <Button
               type="button"
               variant="ghost"

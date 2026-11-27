@@ -23,6 +23,10 @@ interface ChatMessageProps {
   threadId?: string;
   events?: TraceEvent[];
   isLast?: boolean;
+  /** False = do NOT replay the enter animation (refetch remounts). */
+  animate?: boolean;
+  /** True = the AI message's Thinking block mounts expanded. */
+  expandThinking?: boolean;
 }
 
 interface SubagentTimeline {
@@ -98,6 +102,8 @@ function ChatMessageImpl({
   threadId,
   events,
   isLast,
+  animate = true,
+  expandThinking = false,
 }: Readonly<ChatMessageProps>) {
   const isHuman = message.role === MessageRole.HUMAN;
   const isAi = message.role === MessageRole.AI;
@@ -129,7 +135,9 @@ function ChatMessageImpl({
 
   if (isHuman) {
     return (
-      <div className="animate-chat-msg-enter flex flex-row-reverse gap-3 self-end">
+      <div
+        className={`flex flex-row-reverse gap-3 self-end ${animate ? "animate-chat-msg-enter" : ""}`}
+      >
         <div
           className="flex h-9 w-9 shrink-0 items-center justify-center border border-border bg-surface-warm font-display text-xs uppercase text-fg"
           aria-hidden="true"
@@ -161,7 +169,7 @@ function ChatMessageImpl({
   if (isAi) {
     const hasTimeline = (events?.length ?? 0) > 0;
     return (
-      <div className="animate-chat-msg-enter flex gap-3">
+      <div className={`flex gap-3 ${animate ? "animate-chat-msg-enter" : ""}`}>
         <div
           className="flex h-9 w-9 shrink-0 items-center justify-center border border-border bg-accent font-display text-xs uppercase text-accent-on"
           aria-hidden="true"
@@ -178,68 +186,76 @@ function ChatMessageImpl({
             </time>
           </div>
 
-          <div className="chat-msg-bubble border border-border border-l-2 bg-surface p-4 text-sm text-fg">
+          <div className="chat-msg-bubble flex flex-col gap-3 border border-border border-l-2 bg-surface p-4 text-sm text-fg">
+            {/* Thinking FIRST (think → then answer): ONE de-duplicated block
+                above the markdown. The timeline carries the reasoning when
+                turn events exist; message.thinking is the fallback for older
+                turns. Expanded when the message is the LAST AI message so the
+                post-stream swap keeps the reasoning visible in place. */}
+            {hasTimeline && (
+              <ThinkingBlock
+                text={parentThinkingText || message.thinking}
+                source={null}
+                defaultExpanded={expandThinking}
+              />
+            )}
+
             <div className={MARKDOWN_PROSE_CLASSES}>
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
             </div>
 
-            <ThinkingBlock key={message.timestamp} text={message.thinking} />
             <StructuredResponseCard data={message.structured_response} />
 
-            {hasTimeline && (
-              <div className="mt-2 flex flex-col gap-2" data-od-id="message-timeline">
-                <ThinkingBlock text={parentThinkingText} source={null} />
+            <div className="flex flex-col gap-2">
+              {hitlDecisionEvents.map((ev) => {
+                const action = ev.name ?? "";
+                let label = "✎ Edited";
+                let className = "border-accent text-accent";
+                if (action === "approve") {
+                  label = "✓ Approved";
+                  className = "border-success text-success";
+                } else if (action === "reject") {
+                  label = ev.content ? `✗ Rejected: ${ev.content}` : "✗ Rejected";
+                  className = "border-danger text-danger";
+                }
+                return (
+                  <span
+                    key={ev.id}
+                    className={`inline-block w-fit border bg-surface px-2 py-1 font-mono text-xs ${className}`}
+                  >
+                    {label}
+                  </span>
+                );
+              })}
 
-                {hitlDecisionEvents.map((ev) => {
-                  const action = ev.name ?? "";
-                  let label = "✎ Edited";
-                  let className = "border-accent text-accent";
-                  if (action === "approve") {
-                    label = "✓ Approved";
-                    className = "border-success text-success";
-                  } else if (action === "reject") {
-                    label = ev.content ? `✗ Rejected: ${ev.content}` : "✗ Rejected";
-                    className = "border-danger text-danger";
-                  }
-                  return (
-                    <span
-                      key={ev.id}
-                      className={`inline-block w-fit border bg-surface px-2 py-1 font-mono text-xs ${className}`}
-                    >
-                      {label}
-                    </span>
-                  );
-                })}
+              {parentTools.toolCalls.map((call) => (
+                <ToolCallBadge
+                  key={call.id}
+                  name={call.name ?? "unknown"}
+                  args={call.content}
+                  source={null}
+                />
+              ))}
+              {parentTools.toolResults.map((result) => (
+                <ToolResultBlock
+                  key={result.id}
+                  name={result.name}
+                  content={result.content}
+                  source={null}
+                />
+              ))}
 
-                {parentTools.toolCalls.map((call) => (
-                  <ToolCallBadge
-                    key={call.id}
-                    name={call.name ?? "unknown"}
-                    args={call.content}
-                    source={null}
-                  />
-                ))}
-                {parentTools.toolResults.map((result) => (
-                  <ToolResultBlock
-                    key={result.id}
-                    name={result.name}
-                    content={result.content}
-                    source={null}
-                  />
-                ))}
-
-                {subagentTimelines.map((sub) => (
-                  <SubagentPanel
-                    key={sub.name}
-                    name={sub.name}
-                    content={sub.content}
-                    thinking={sub.thinking}
-                    toolCalls={sub.toolCalls}
-                    toolResults={sub.toolResults}
-                  />
-                ))}
-              </div>
-            )}
+              {subagentTimelines.map((sub) => (
+                <SubagentPanel
+                  key={sub.name}
+                  name={sub.name}
+                  content={sub.content}
+                  thinking={sub.thinking}
+                  toolCalls={sub.toolCalls}
+                  toolResults={sub.toolResults}
+                />
+              ))}
+            </div>
           </div>
 
           {isAwaitingHitl && !!message.tool_calls?.length && !!threadId && isLast && (
@@ -265,7 +281,9 @@ const ChatMessage = memo(ChatMessageImpl, (prev, next) => {
     prev.threadId === next.threadId &&
     prev.message === next.message &&
     prev.events === next.events &&
-    prev.isLast === next.isLast
+    prev.isLast === next.isLast &&
+    prev.animate === next.animate &&
+    prev.expandThinking === next.expandThinking
   );
 });
 
