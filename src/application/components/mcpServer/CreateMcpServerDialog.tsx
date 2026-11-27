@@ -323,7 +323,9 @@ export function CreateMcpServerDialog({
     setValidationError(null);
     try {
       const result = await validateServer.mutateAsync(buildValidateInput());
-      setValidationMessage(`✓ ${result.tool_count} tools`);
+      const names = result.tool_names;
+      const suffix = names && names.length > 0 ? `: ${names.slice(0, 6).join(", ")}` : "";
+      setValidationMessage(`✓ ${result.tool_count} tools${suffix}`);
     } catch (error) {
       setValidationError(extractApiMessage(error));
     }
@@ -354,7 +356,10 @@ export function CreateMcpServerDialog({
     };
 
     if (isEdit && editServer) {
-      updateServer.mutate({ name: editServer.name, input: buildUpdateInput() }, { onSuccess, onError });
+      updateServer.mutate(
+        { name: editServer.name, input: buildUpdateInput() },
+        { onSuccess, onError },
+      );
     } else {
       createServer.mutate(buildInput(), { onSuccess, onError });
     }
@@ -541,11 +546,11 @@ export function CreateMcpServerDialog({
         </div>
 
         {/*
-          * BUG-003: the one-line confirm gating a destructive auth-mode switch
-          * on an EXISTING server (see {@link handleAuthModeChange}). Same
-          * AlertDialog treatment as the API-key revoke confirm
-          * (settings/ApiKeysCard.tsx); cancelling leaves the current mode.
-          */}
+         * BUG-003: the one-line confirm gating a destructive auth-mode switch
+         * on an EXISTING server (see {@link handleAuthModeChange}). Same
+         * AlertDialog treatment as the API-key revoke confirm
+         * (settings/ApiKeysCard.tsx); cancelling leaves the current mode.
+         */}
         <AlertDialog
           open={pendingAuthMode !== null}
           onOpenChange={(o) => {

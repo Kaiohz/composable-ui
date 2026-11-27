@@ -63,7 +63,19 @@ export function McpServerCard({ server, onEdit, onDelete }: Readonly<McpServerCa
         {displayedUrl}
       </p>
 
-      <p className="font-mono text-xs text-fg-2">{server.tool_count} tools</p>
+      <p className="font-mono text-xs text-fg-2">
+        {server.tool_count} tools
+        {server.tool_names && server.tool_names.length > 0 && (
+          <span
+            className="ml-2 text-muted"
+            data-od-id="mcp-server-tool-names"
+            title={server.tool_names.join(", ")}
+          >
+            ({server.tool_names.slice(0, 4).join(", ")}
+            {server.tool_names.length > 4 ? ` +${server.tool_names.length - 4} more` : ""})
+          </span>
+        )}
+      </p>
       <p className="font-mono text-xs text-muted">Created {server.created_at.slice(0, 10)}</p>
 
       <ResourceCardFooter>
