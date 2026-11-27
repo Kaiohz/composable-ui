@@ -18,6 +18,13 @@ export default function FolderRow({
   onIndexClassical,
   onDelete,
 }: Readonly<FolderRowProps>) {
+  // The folder name doubles as the accessible DESCRIPTION of the row actions
+  // (aria-describedby feeds the description, not the name), so the action
+  // buttons convey WHICH folder they target while the row-opening control
+  // stays the unique accessible-name match for the folder (the behavioral
+  // navigation query resolves by name).
+  const nameId = `folder-row-name-${name}`;
+
   return (
     <div
       data-od-id={`file-row-${name}`}
@@ -40,7 +47,9 @@ export default function FolderRow({
         >
           <Folder className="h-5 w-5" aria-hidden="true" />
         </span>
-        <span className="text-sm text-fg font-body truncate">{name}</span>
+        <span id={nameId} className="text-sm text-fg font-body truncate">
+          {name}
+        </span>
       </button>
       <div className="flex items-center gap-1 pr-3">
         {isIndexing && (
@@ -55,13 +64,23 @@ export default function FolderRow({
               e.stopPropagation();
               onDelete();
             }}
-            aria-label={`Delete ${name}`}
+            /* Name-free accessible LABEL (the folder name travels in the
+               description above) — the row-opening control must stay the
+               unique name match for the folder (behavioral contract). */
+            aria-label="Delete folder"
+            aria-describedby={nameId}
             data-od-id={`folder-delete-${name}`}
           >
             <Trash className="h-3.5 w-3.5" aria-hidden="true" />
           </Button>
         )}
-        {onIndexClassical && <IndexActionMenu onIndexClassical={onIndexClassical} />}
+        {onIndexClassical && (
+          <IndexActionMenu
+            onIndexClassical={onIndexClassical}
+            ariaLabel="Index folder"
+            ariaDescribedBy={nameId}
+          />
+        )}
       </div>
     </div>
   );

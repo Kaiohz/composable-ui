@@ -33,6 +33,12 @@ const ragStorage: DocChapter = {
 
     sub("Browse your storage"),
     bullets(
+      [
+        lbl("Space (user × agent scope)"),
+        txt(
+          " — the selector in the bar above the file explorer lists every space the user owns: Personal first, then the agents of the platform (built-in first), then external coding-agent scopes — choosing one scopes browsing, uploading, indexing and deletion.",
+        ),
+      ],
       [lbl("New Folder"), txt(" — creates a folder at your current location.")],
       [lbl("Upload"), txt(" — opens the file picker; select one or several files at once.")],
       [
@@ -120,7 +126,9 @@ const ragStorage: DocChapter = {
       txt(" action."),
     ),
     para(
-      txt("The working directory indexing uses can be set with the "),
+      txt(
+        "Indexing happens inside the selected space. The working directory indexing uses can be set with the ",
+      ),
       lbl("Workspace (working directory)"),
       txt(" selector — that selector lives on the "),
       lbl("Query"),
@@ -129,11 +137,7 @@ const ragStorage: DocChapter = {
       txt(" button — immediately to its left, with the "),
       lbl("Advanced Options"),
       txt(
-        " disclosure above that row — and its value is reused by indexing too. If you index without choosing one, the run still starts: it covers the folder you are currently browsing, and the default workspace (",
-      ),
-      lbl("default-composable"),
-      txt(
-        ") when you are at the top level. You are never blocked — you simply do not control which space the index covers, which is why selecting the workspace first is the recommended sequence.",
+        " disclosure above that row — its value is reused when you index a single file. Indexing a FOLDER always covers that folder itself: the folder's own path is the namespace the chunks land in, so the working-directory selector does not apply there. If you index a file without choosing a working directory, the run still starts: it covers the folder you are currently browsing, or the root of the selected space when you are at the top level. You are never blocked — you simply do not control which working directory a single-file index covers, which is why selecting the workspace first is the recommended sequence.",
       ),
     ),
     steps(
@@ -152,7 +156,7 @@ const ragStorage: DocChapter = {
         txt(", immediately to its left — then return to the "),
         lbl("Browse"),
         txt(
-          " tab. Leaving it empty indexes the folder you are currently browsing (or the default workspace at the top level).",
+          " tab. Leaving it empty indexes the folder you are currently browsing (or the selected space's root at the top level).",
         ),
       ],
       [
@@ -246,8 +250,10 @@ const ragStorage: DocChapter = {
     ),
     warning(
       txt(
-        "Folder deletion is recursive: deleting a folder removes the folder and every file inside it, including nested subfolders, together with their indexed content. Delete files individually when you only want to remove specific documents.",
+        "Folder deletion is recursive: deleting a folder removes the folder and every file inside it, including nested subfolders, together with their indexed content. Deletion only affects the space chosen with the ",
       ),
+      lbl("Space (user × agent scope)"),
+      txt(" selector. Delete files individually when you only want to remove specific documents."),
     ),
 
     sub("Example workflow"),
@@ -291,7 +297,7 @@ const ragStorage: DocChapter = {
       ],
       [
         txt(
-          "A deleted folder still affects searches — indexed content of deleted items is removed during deletion; re-index the folder if it was recreated.",
+          "A deleted folder still affects searches — indexed content of deleted items is removed during deletion; re-index the folder if it is recreated.",
         ),
       ],
     ),

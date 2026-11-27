@@ -9,13 +9,18 @@ export function useClassicalIndexFile() {
       workingDir: string;
       chunkSize: number;
       chunkOverlap: number;
-    }) =>
-      ragIndexApi.indexFileClassical({
+      agentSlug?: string;
+    }) => {
+      const body = {
         file_name: request.fileName,
         working_dir: request.workingDir,
         chunk_size: request.chunkSize,
         chunk_overlap: request.chunkOverlap,
-      }),
+      };
+      return request.agentSlug
+        ? ragIndexApi.indexFileClassical(body, request.agentSlug)
+        : ragIndexApi.indexFileClassical(body);
+    },
     onSuccess: () => {
       toast.success("File indexing (Classical) started in background");
     },

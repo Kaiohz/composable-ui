@@ -5,7 +5,8 @@ export function useDeleteFolder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ prefix }: { prefix: string }) => ragApi.deleteFolder(prefix),
+    mutationFn: ({ prefix, agentSlug }: { prefix: string; agentSlug?: string }) =>
+      agentSlug ? ragApi.deleteFolder(prefix, agentSlug) : ragApi.deleteFolder(prefix),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rag", "folders"] });
       queryClient.invalidateQueries({ queryKey: ["rag", "files"] });

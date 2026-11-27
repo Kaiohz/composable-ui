@@ -29,7 +29,7 @@ describe("useCurrentUser", () => {
   it("returns the profile when data loads", async () => {
     // Arrange
     const profile: UserProfile = {
-      userId: "user-123",
+      user_id: "user-123",
       email: "jane@example.com",
       name: "Jane Doe",
       username: "jane",
@@ -61,7 +61,7 @@ describe("useCurrentUser", () => {
 
   it("calls userApi.me exactly once per mount", async () => {
     // Arrange
-    vi.mocked(userApi.me).mockResolvedValue({ userId: "u1" });
+    vi.mocked(userApi.me).mockResolvedValue({ user_id: "u1" });
 
     // Act
     renderHook(() => useCurrentUser(), { wrapper: createWrapper() });

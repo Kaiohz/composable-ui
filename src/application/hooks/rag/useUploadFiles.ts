@@ -101,10 +101,23 @@ export function useUploadFiles() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ prefix, files }: { prefix: string; files: File[] }) => {
+    mutationFn: async ({
+      prefix,
+      files,
+      agentSlug,
+    }: {
+      prefix: string;
+      files: File[];
+      agentSlug?: string;
+    }) => {
       const results = await mapWithConcurrency(
         files,
-        (file) => ragApi.uploadFile(prefix + getDirFromFile(file), file),
+        (file) => {
+          const target = prefix + getDirFromFile(file);
+          return agentSlug
+            ? ragApi.uploadFile(target, file, agentSlug)
+            : ragApi.uploadFile(target, file);
+        },
         DEFAULT_UPLOAD_CONCURRENCY,
       );
 

@@ -2,13 +2,15 @@
  * Current-user profile entity — public projection of the authenticated user
  * returned by `GET /api/v1/users/me`.
  *
- * The optional fields (`email`, `name`, `username`) are populated from the JWT
- * claims when the user authenticated via oauth2-proxy (Logto). For API-key
- * auth only `userId` is available and the optional fields are `null`.
+ * The backend serialises the authenticated principal id as `user_id`
+ * (snake_case, composable-agents `UserProfile` model). The optional fields
+ * (`email`, `name`, `username`) are populated from the JWT claims when the
+ * user authenticated via oauth2-proxy (Logto). For API-key auth only
+ * `user_id` is available and the optional fields are `null`.
  */
 
 export interface UserProfile {
-  readonly userId: string;
+  readonly user_id: string;
   readonly email?: string | null;
   readonly name?: string | null;
   readonly username?: string | null;
@@ -17,7 +19,7 @@ export interface UserProfile {
 /**
  * Best-effort display name for the current user.
  *
- * Priority: `name` -> `username` -> local part of `email` -> `userId`.
+ * Priority: `name` -> `username` -> local part of `email` -> `user_id`.
  * Never returns an empty string.
  */
 export function getDisplayName(profile: UserProfile | null | undefined): string {
@@ -31,7 +33,7 @@ export function getDisplayName(profile: UserProfile | null | undefined): string 
     const localPart = email.split("@")[0];
     if (localPart) return localPart;
   }
-  return profile.userId;
+  return profile.user_id;
 }
 
 /**

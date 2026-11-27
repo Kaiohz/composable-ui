@@ -10,14 +10,19 @@ export function useClassicalIndexFolder() {
       fileExtensions?: string[];
       chunkSize: number;
       chunkOverlap: number;
-    }) =>
-      ragIndexApi.indexFolderClassical({
+      agentSlug?: string;
+    }) => {
+      const body = {
         working_dir: request.workingDir,
         recursive: request.recursive,
         file_extensions: request.fileExtensions,
         chunk_size: request.chunkSize,
         chunk_overlap: request.chunkOverlap,
-      }),
+      };
+      return request.agentSlug
+        ? ragIndexApi.indexFolderClassical(body, request.agentSlug)
+        : ragIndexApi.indexFolderClassical(body);
+    },
     onSuccess: () => {
       toast.success("Folder indexing (Classical) started in background");
     },

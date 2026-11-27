@@ -13,8 +13,9 @@ export function useClassicalQuery() {
       vectorDistanceThreshold?: number;
       enableLlmJudge: boolean;
       mode: ClassicalQueryMode;
-    }) =>
-      ragQueryApi.queryClassical({
+      agentSlug?: string;
+    }) => {
+      const body = {
         working_dir: request.workingDir,
         query: request.query,
         top_k: request.topK,
@@ -23,6 +24,10 @@ export function useClassicalQuery() {
         vector_distance_threshold: request.vectorDistanceThreshold,
         enable_llm_judge: request.enableLlmJudge,
         mode: request.mode,
-      }),
+      };
+      return request.agentSlug
+        ? ragQueryApi.queryClassical(body, request.agentSlug)
+        : ragQueryApi.queryClassical(body);
+    },
   });
 }

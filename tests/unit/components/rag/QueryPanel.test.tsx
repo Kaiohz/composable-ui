@@ -37,11 +37,22 @@ describe("QueryPanel", () => {
     expect(screen.getByRole("button", { name: /search/i })).toBeInTheDocument();
   });
 
-  it("search button is disabled when workingDir is empty", () => {
-    renderWithProviders(<QueryPanel workingDir="" />);
+  it("search button is disabled while the query is empty", () => {
+    renderWithProviders(<QueryPanel workingDir="/data" />);
 
     const searchBtn = screen.getByRole("button", { name: /search/i });
     expect(searchBtn).toBeDisabled();
+  });
+
+  it("enables search with an empty workingDir once a query is typed (queries the space-root namespace)", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<QueryPanel workingDir="" />);
+
+    await user.type(screen.getByPlaceholderText(/ask a question|search|query/i), "test query");
+
+    const searchBtn = screen.getByRole("button", { name: /search/i });
+    expect(searchBtn).not.toBeDisabled();
   });
 
   it("search button is enabled when workingDir is provided and query has text", async () => {
