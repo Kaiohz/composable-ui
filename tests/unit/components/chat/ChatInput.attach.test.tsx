@@ -302,3 +302,20 @@ describe("Builtin capabilities + thinking level selector", () => {
     useThinkingLevelStore.setState({ level: "off" });
   });
 });
+
+describe("Thinking selector — real user interaction", () => {
+  it("changes level via userEvent.selectOptions and persists it", async () => {
+    const user = userEvent.setup();
+    renderChatInput({ agentConfig: agentWithoutMcp() });
+
+    const select = screen.getByTestId("chat-thinking-select") as unknown as HTMLSelectElement;
+    expect((select as unknown as { value: string }).value).toBe("off");
+
+    await user.selectOptions(select, "medium");
+
+    const { useThinkingLevelStore } = await import("@/application/stores/useThinkingLevelStore");
+    expect(useThinkingLevelStore.getState().level).toBe("medium");
+    // Reload the component: the persisted state feeds back the selection.
+    useThinkingLevelStore.setState({ level: "off" });
+  });
+});

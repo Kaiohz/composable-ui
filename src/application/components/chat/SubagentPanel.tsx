@@ -35,7 +35,7 @@ function SubagentPanelImpl({
       </header>
 
       <div className="mt-2 flex flex-col gap-2">
-        <ThinkingBlock text={thinking} source={name} />
+        <ThinkingBlock text={thinking} source={name} defaultExpanded />
 
         {toolCalls.map((call) => (
           <ToolCallBadge

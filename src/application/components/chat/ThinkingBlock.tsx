@@ -5,10 +5,20 @@ import { cn } from "@/application/lib/utils";
 interface ThinkingBlockProps {
   text: string | null;
   source?: string | null;
+  /**
+   * Initial expansion state. The STREAMING turn opens the block so the
+   * reasoning text is visible live while the model thinks; persisted history
+   * messages stay collapsed (on-demand reading).
+   */
+  defaultExpanded?: boolean;
 }
 
-export default function ThinkingBlock({ text, source = null }: Readonly<ThinkingBlockProps>) {
-  const [isExpanded, setIsExpanded] = useState(false);
+export default function ThinkingBlock({
+  text,
+  source = null,
+  defaultExpanded = false,
+}: Readonly<ThinkingBlockProps>) {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const panelId = useId();
 
   if (!text?.trim()) return null;

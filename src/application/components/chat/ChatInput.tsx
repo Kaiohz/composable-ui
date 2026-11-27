@@ -460,7 +460,7 @@ export default function ChatInput({ threadId, agentConfig = null }: Readonly<Cha
               onChange={(e) => setThinkingLevel(e.target.value as ThinkingLevel)}
               disabled={isStreaming || isEncoding}
               aria-label="Thinking level"
-              className="max-h-7 cursor-pointer rounded-sm border-0 bg-transparent px-1 py-1 font-mono text-xs text-muted focus:outline-none"
+              className="h-8 cursor-pointer rounded-sm border border-border bg-surface px-2 text-xs text-fg hover:border-accent focus:outline-none focus:border-accent"
               title="Thinking level (applies to reasoning-capable models)"
             >
               <option value="off">Thinking off</option>
