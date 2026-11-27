@@ -298,7 +298,10 @@ export default function MessageList({
                     </ReactMarkdown>
                   </div>
                 )}
-                <ThinkingBlock text={deferredParentThinking} source={null} />
+                {/* Streaming reasoning: the block is OPEN so the thoughts
+                    stream progressively (this is the only place the user can
+                    actually WATCH the model think). */}
+                <ThinkingBlock text={deferredParentThinking} source={null} defaultExpanded />
 
                 {parentTools.toolCalls.map((call) => (
                   <ToolCallBadge
