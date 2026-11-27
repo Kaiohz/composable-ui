@@ -145,18 +145,18 @@ export default function MessageList({
     emptyMessage ??
     (readOnly ? "This thread has no recorded events." : "Send a message to start the conversation");
   const { data: threadHistory, isLoading, isFetching } = useThreadHistory(threadId);
+  const entries = useMemo(
+    () => (threadHistory ? messagesFromTurns(threadHistory.turns) : []),
+    [threadHistory],
+  );
   const streamingTurn = useChatStore((s) => s.streamingTurn);
   const isStreaming = useChatStore((s) => s.isStreaming);
   const pendingUserMessage = useChatStore((s) => s.pendingUserMessage);
   const pendingUserAttachments = useChatStore((s) => s.pendingUserAttachments);
   const error = useChatStore((s) => s.error);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  const entries = useMemo(
-    () => (threadHistory ? messagesFromTurns(threadHistory.turns) : []),
-    [threadHistory],
-  );
-
+  const deferredParentContent = useDeferredValue(streamingTurn?.parentContent ?? "");
+  const deferredParentThinking = useDeferredValue(streamingTurn?.parentThinking ?? "");
   const streamingSubagents = useMemo(
     () => (streamingTurn ? buildStreamingSubagents(streamingTurn.events) : []),
     [streamingTurn],
@@ -168,9 +168,6 @@ export default function MessageList({
         : { toolCalls: [], toolResults: [] },
     [streamingTurn],
   );
-
-  const deferredParentContent = useDeferredValue(streamingTurn?.parentContent ?? "");
-  const deferredParentThinking = useDeferredValue(streamingTurn?.parentThinking ?? "");
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -233,16 +230,21 @@ export default function MessageList({
       )}
       <div ref={scrollRef} className="flex flex-1 flex-col gap-5 overflow-y-auto bg-bg p-4 md:p-6">
         {hasMessages &&
-          entries.map((entry, idx) => (
-            <ChatMessage
-              key={`${entry.message.timestamp}-${idx}`}
-              message={entry.message}
-              agentName={agentName}
-              threadId={threadId}
-              events={entry.events}
-              isLast={idx === entries.length - 1}
-            />
-          ))}
+          entries.map((entry, idx) => {
+            const key = `${entry.message.timestamp}-${idx}`;
+            const isLastAi = idx === entries.length - 1 && entry.message.role === MessageRole.AI;
+            return (
+              <ChatMessage
+                key={key}
+                message={entry.message}
+                agentName={agentName}
+                threadId={threadId}
+                events={entry.events}
+                isLast={isLastAi}
+                expandThinking={isLastAi}
+              />
+            );
+          })}
 
         {!hasMessages && !isStreaming && !error && !pendingUserMessage && (
           <div
@@ -290,18 +292,21 @@ export default function MessageList({
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-mono text-sm text-fg">{agentName}</span>
               </div>
-              <div className="border border-border bg-surface p-4 text-sm text-fg">
+              <div className="border border-border bg-surface flex flex-col gap-3 p-4 text-sm text-fg">
+                {/* Streaming reasoning FIRST (open — the thoughts stream
+                    progressively; the only place the user can WATCH the
+                    model think), then the partial answer below it. */}
+                {deferredParentThinking && (
+                  <ThinkingBlock text={deferredParentThinking} source={null} defaultExpanded />
+                )}
+
                 {deferredParentContent && (
-                  <div className={`mb-3 ${MARKDOWN_PROSE_CLASSES}`}>
+                  <div className={MARKDOWN_PROSE_CLASSES}>
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {deferredParentContent}
                     </ReactMarkdown>
                   </div>
                 )}
-                {/* Streaming reasoning: the block is OPEN so the thoughts
-                    stream progressively (this is the only place the user can
-                    actually WATCH the model think). */}
-                <ThinkingBlock text={deferredParentThinking} source={null} defaultExpanded />
 
                 {parentTools.toolCalls.map((call) => (
                   <ToolCallBadge
