@@ -270,14 +270,17 @@ describe("Builtin capabilities + thinking level selector", () => {
   it("exposes the thinking-level selector and sends the selected effort", async () => {
     const user = userEvent.setup();
     // Persisted store starts at "off" — reset it for this test's assertion.
-    localStorage.setItem("composable-ui-thinking", JSON.stringify({ state: { level: "high" }, version: 0 }));
+    localStorage.setItem(
+      "composable-ui-thinking",
+      JSON.stringify({ state: { level: "high" }, version: 0 }),
+    );
     const { useThinkingLevelStore } = await import("@/application/stores/useThinkingLevelStore");
     useThinkingLevelStore.setState({ level: "high" });
 
     renderChatInput({ agentConfig: agentWithoutMcp() });
 
-    const select = screen.getByTestId("chat-thinking-select") as HTMLSelectElement;
-    expect((select as unknown as { value: string }).value).toBe("high");
+    const trigger = screen.getByTestId("chat-thinking-select");
+    expect(trigger.textContent).toContain("Thinking high");
 
     const textarea = screen.getByRole("textbox", { name: /chat message input/i });
     await user.type(textarea, "hello");
@@ -298,20 +301,30 @@ describe("Builtin capabilities + thinking level selector", () => {
     await waitFor(() => {
       expect(mockStream).toHaveBeenCalledTimes(1);
     });
-    expect((mockStream.mock.calls[0][0] as { reasoning_effort?: string }).reasoning_effort).toBeUndefined();
+    expect(
+      (mockStream.mock.calls[0][0] as { reasoning_effort?: string }).reasoning_effort,
+    ).toBeUndefined();
     useThinkingLevelStore.setState({ level: "off" });
   });
 });
 
 describe("Thinking selector — real user interaction", () => {
-  it("changes level via userEvent.selectOptions and persists it", async () => {
+  it("changes level via the Radix dropdown and persists it", async () => {
     const user = userEvent.setup();
     renderChatInput({ agentConfig: agentWithoutMcp() });
 
-    const select = screen.getByTestId("chat-thinking-select") as unknown as HTMLSelectElement;
-    expect((select as unknown as { value: string }).value).toBe("off");
+    const trigger = screen.getByTestId("chat-thinking-select");
+    expect(trigger).not.toBeNull();
+    expect(trigger.textContent).toContain("Thinking off");
 
-    await user.selectOptions(select, "medium");
+    // Open the Radix dropdown and pick "medium" like a real user.
+    await user.click(trigger);
+    const option = await screen.findByRole(
+      "option",
+      { name: "Thinking medium" },
+      { timeout: 2000 },
+    );
+    await user.click(option);
 
     const { useThinkingLevelStore } = await import("@/application/stores/useThinkingLevelStore");
     expect(useThinkingLevelStore.getState().level).toBe("medium");
