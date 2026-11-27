@@ -109,3 +109,32 @@ describe("McpServerCard shared resource-card treatment", () => {
     expect(onDelete).toHaveBeenCalledWith("weather");
   });
 });
+
+describe("McpServerCard tool names", () => {
+  it("surfaces the discovered tool NAMES when the registry provides them", () => {
+    const server = makeServer({
+      tool_names: ["ping", "list_files", "read_file", "query_rag", "save_memory"],
+    });
+    const { container } = renderWithProviders(
+      <McpServerCard server={server as never} onEdit={vi.fn()} onDelete={vi.fn()} />,
+    );
+
+    const names = container.querySelector('[data-od-id="mcp-server-tool-names"]');
+    expect(names).not.toBeNull();
+    // First four names inline, the rest collapsed with a +N suffix (title
+    // always carries the FULL list for hover).
+    expect(names?.textContent).toContain("(ping, list_files, read_file, query_rag +1 more)");
+    expect(names?.getAttribute("title")).toBe(
+      "ping, list_files, read_file, query_rag, save_memory",
+    );
+  });
+
+  it("renders without any tool-name surface on legacy registry entries", () => {
+    const { container } = renderWithProviders(
+      <McpServerCard server={makeServer() as never} onEdit={vi.fn()} onDelete={vi.fn()} />,
+    );
+
+    expect(container.querySelector('[data-od-id="mcp-server-tool-names"]')).toBeNull();
+    expect(screen.getByText(/5 tools/)).toBeInTheDocument();
+  });
+});

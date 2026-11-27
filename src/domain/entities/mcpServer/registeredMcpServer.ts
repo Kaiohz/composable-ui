@@ -44,6 +44,13 @@ export interface RegisteredMcpServer {
   readonly auth_token: string | null;
   /** Number of tools exposed by the server. */
   readonly tool_count: number;
+  /**
+   * Names of the tools exposed by the server (non-secret metadata, populated
+   * by the registry on create/update probes — empty for legacy rows).
+   * OPTIONAL on the read projection: absent while the registry has not been
+   * redeployed with the tool_names column.
+   */
+  readonly tool_names?: string[];
   /** ISO timestamp — registry creation time. */
   readonly created_at: string;
   /** ISO timestamp — last registry update. */
@@ -152,4 +159,6 @@ export function authModeSwitchWipesStoredCredential(
 /** Result of a validation (test connection) call. */
 export interface McpServerValidationResult {
   readonly tool_count: number;
+  /** Names of the discovered tools (optional — absent on older backends). */
+  readonly tool_names?: string[];
 }
