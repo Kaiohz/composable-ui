@@ -240,7 +240,8 @@ describe("ToolResultBlock — create_pdf actions (REQ-077/078)", () => {
     const blob = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls[0][0] as Blob;
     expect(blob.type).toBe("application/pdf");
     const anchor = createElementSpy.mock.results.find((r) => r.value?.tagName === "A")?.value as
-      HTMLAnchorElement | undefined;
+      | HTMLAnchorElement
+      | undefined;
     expect(anchor).toBeTruthy();
     expect(anchor?.download).toBe("rapport.pdf");
   });
@@ -275,7 +276,8 @@ describe("ToolResultBlock — generic rendering preserved (REQ-091 / EC-010 / ED
     await expandTool();
     expect(screen.queryByTestId("pdf-preview-button")).not.toBeInTheDocument();
     expect(screen.queryByTestId("pdf-download-button")).not.toBeInTheDocument();
-    expect(screen.getByText('{"hits": 12}')).toBeInTheDocument();
+    // JSON payloads render pretty-printed (indent 2) — no PDF action button.
+    expect(screen.getByText(/"hits": 12/)).toBeInTheDocument();
   });
 
   it("does NOT render pdf actions for a create_pdf result with malformed JSON (EC-010)", async () => {

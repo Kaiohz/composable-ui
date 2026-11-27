@@ -35,3 +35,49 @@ describe("ToolResultBlock", () => {
     expect(screen.getByText(/Tool Result/i)).toBeInTheDocument();
   });
 });
+
+describe("ToolResultBlock pretty JSON", () => {
+  it("renders JSON payloads pretty-printed with 2-space indentation", async () => {
+    const user = userEvent.setup();
+    const payload = JSON.stringify({
+      query: "vietnam",
+      results: [{ url: "https://example.com", truncated: true }],
+    });
+    renderWithProviders(<ToolResultBlock name="web_search" content={payload} source={null} />);
+
+    await user.click(screen.getByRole("button", { name: /toggle result/i }));
+
+    const rendered = screen.getByText(/vietnam/);
+    expect(rendered.textContent).toBe(JSON.stringify(JSON.parse(payload), null, 2));
+    // The pretty form is multi-line (each key on its own line, indented).
+    expect(rendered.textContent.split("\n").length).toBeGreaterThan(3);
+  });
+
+  it("renders non-JSON payloads verbatim", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ToolResultBlock name="noop" content="plain text payload" source={null} />);
+
+    await user.click(screen.getByRole("button", { name: /toggle result/i }));
+
+    expect(screen.getByText("plain text payload")).toBeInTheDocument();
+  });
+
+  it("keeps every JSON field intact when pretty-printing (base64 PDF payloads)", async () => {
+    const user = userEvent.setup();
+    const payload = JSON.stringify({
+      type: "pdf",
+      filename: "doc.pdf",
+      path: "/documents/doc.pdf",
+      mime_type: "application/pdf",
+      content: "JVBERi0xLjQ=",
+    });
+    renderWithProviders(<ToolResultBlock name="create_pdf" content={payload} source={null} />);
+
+    await user.click(screen.getByRole("button", { name: /toggle result/i }));
+
+    const rendered = screen.getByText(/doc.pdf/);
+    // Round-trips: pretty JSON keeps the exact same values (no mutation).
+    expect(JSON.parse(rendered.textContent ?? "")).toEqual(JSON.parse(payload));
+    expect(rendered.textContent).toContain("JVBERi0xLjQ=");
+  });
+});

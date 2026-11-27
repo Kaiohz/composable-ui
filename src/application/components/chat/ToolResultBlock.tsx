@@ -47,6 +47,18 @@ export default function ToolResultBlock({ name, content, source }: Readonly<Tool
   // generic rendering with no PDF-specific surface (REQ-091 / EC-010).
   const pdfResult = useMemo(() => parseCreatePdfToolResult(name, content), [name, content]);
 
+  // JSON payloads render pretty-printed (indent 2) so nested structures stay
+  // readable in the mono block; anything that does not parse as JSON (plain
+  // text, base64 payloads) renders verbatim.
+  const prettyContent = useMemo(() => {
+    if (!content) return content;
+    try {
+      return JSON.stringify(JSON.parse(content), null, 2);
+    } catch {
+      return content;
+    }
+  }, [content]);
+
   // REQ-087/088/089: Download fetches the PDF from the user store and saves
   // it as a real application/pdf blob named after ``filename`` — fully
   // independent from the Preview dialog. Failure surfaces BOTH as the repo's
@@ -162,7 +174,7 @@ export default function ToolResultBlock({ name, content, source }: Readonly<Tool
           id={panelId}
           className="max-h-48 overflow-y-auto whitespace-pre-wrap border-t border-border bg-bg px-3 py-2 text-xs text-fg-2"
         >
-          {content}
+          {prettyContent}
         </pre>
       )}
     </div>
