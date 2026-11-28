@@ -3,8 +3,10 @@ import type { AppConfig, BuiltInMcpServer } from "./appConfig";
 /**
  * MCP servers permanently mounted by the `composable-agents` FastAPI backend
  * and the `mcp-raganything` backend.  Composable Agents exposes the platform
- * control plane at `/mcp`; raganything hosts the per-user RAG/Web/Memories
- * mounts.  All of these are listed as read-only built-ins on the MCP Registry
+ * control plane at `/mcp`; raganything hosts the per-user RAG/Web mounts.
+ * Memories are NOT listed here: the raganything /memories/mcp mount was
+ * removed (redundant with composable-agents' own MCP memories tools).
+ * All of these are listed as read-only built-ins on the MCP Registry
  * page and can be registered with one click.
  */
 const COMPOSABLE_AGENTS_MCP: Readonly<{
@@ -18,10 +20,7 @@ const COMPOSABLE_AGENTS_MCP: Readonly<{
 const RAGANYTHING_MCP_MOUNTS: ReadonlyArray<{
   readonly name: string;
   readonly path: string;
-}> = [
-  { name: "Memories", path: "/memories/mcp" },
-  { name: "Web Search", path: "/web/mcp" },
-];
+}> = [{ name: "Web Search", path: "/web/mcp" }];
 
 const TRAILING_SLASH = /\/$/;
 

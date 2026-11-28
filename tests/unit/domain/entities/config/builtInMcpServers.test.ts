@@ -23,13 +23,11 @@ describe("completeBuiltInMcpServers", () => {
     });
   });
 
-  it("still appends the canonical raganything mounts", () => {
+  it("appends the canonical raganything mounts WITHOUT the removed Memories mount", () => {
     const config = completeBuiltInMcpServers(baseConfig);
-    expect(config.builtInMcpServers).toContainEqual({
-      name: "Memories",
-      url: "http://rag.test.com/memories/mcp",
-      transport: "http",
-    });
+    expect(config.builtInMcpServers).not.toContainEqual(
+      expect.objectContaining({ name: "Memories" }),
+    );
     expect(config.builtInMcpServers).toContainEqual({
       name: "Web Search",
       url: "http://rag.test.com/web/mcp",
@@ -46,7 +44,6 @@ describe("completeBuiltInMcpServers", () => {
     });
     expect(config.builtInMcpServers).toEqual([
       { name: "Composable Agents", url: "http://custom-agents.test.com/mcp", transport: "http" },
-      { name: "Memories", url: "http://rag.test.com/memories/mcp", transport: "http" },
       { name: "Web Search", url: "http://rag.test.com/web/mcp", transport: "http" },
     ]);
   });

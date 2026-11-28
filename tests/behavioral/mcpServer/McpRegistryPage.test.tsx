@@ -148,13 +148,14 @@ describe("McpRegistryPage built-in MCP servers", () => {
     expect(builtIns.getByText("Composable Agents")).toBeInTheDocument();
     expect(builtIns.getByText("http://api.test.com/mcp")).toBeInTheDocument();
     expect(builtIns.getByText("raganything-classical")).toBeInTheDocument();
-    expect(builtIns.getByText("Memories")).toBeInTheDocument();
-    expect(builtIns.getByText("https://ragany.test.com/memories/mcp")).toBeInTheDocument();
+    // Memories is intentionally ABSENT: the raganything /memories/mcp mount
+    // was removed (redundant with composable-agents' own MCP memories tools).
+    expect(builtIns.queryByText("Memories")).toBeNull();
     expect(builtIns.getByText("Web Search")).toBeInTheDocument();
     expect(builtIns.getByText("https://ragany.test.com/web/mcp")).toBeInTheDocument();
-    expect(builtIns.getAllByText("built-in")).toHaveLength(5);
-    expect(builtIns.getAllByText("http")).toHaveLength(5);
-    expect(builtIns.getAllByRole("button", { name: "Register" })).toHaveLength(5);
+    expect(builtIns.getAllByText("built-in")).toHaveLength(4);
+    expect(builtIns.getAllByText("http")).toHaveLength(4);
+    expect(builtIns.getAllByRole("button", { name: "Register" })).toHaveLength(4);
 
     // The registered registry remains unchanged and separate from built-ins.
     expect(screen.getByText("weather")).toBeInTheDocument();
@@ -163,7 +164,6 @@ describe("McpRegistryPage built-in MCP servers", () => {
 
     // A rerender must not append another copy of either built-in.
     view.rerender(<McpRegistryPage />);
-    expect(builtIns.getAllByText("Memories")).toHaveLength(1);
     expect(builtIns.getAllByText("Web Search")).toHaveLength(1);
   });
 });
