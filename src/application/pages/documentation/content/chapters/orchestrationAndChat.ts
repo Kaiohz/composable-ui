@@ -13,19 +13,19 @@ import {
 } from "../types";
 
 /**
- * DOC-02 — Orchestration and Chat. Conversations, streaming activity,
+ * DOC-02 — Threads and Chat (chapter slug kept as orchestration-and-chat). Conversations, streaming activity,
  * human-in-the-loop tool review, attachments, structured responses, PDF
  * results and thread history, based on the current Chat screen labels.
  */
 const orchestrationAndChat: DocChapter = {
   doc: "DOC-02",
   slug: "orchestration-and-chat",
-  navLabel: "Orchestration and Chat",
-  title: "Orchestration and Chat",
+  navLabel: "Threads and Chat",
+  title: "Threads and Chat",
   blocks: [
     para(
       txt(
-        "The Orchestration screen is where you talk with your agents in real time. Replies stream in as they are generated, you can watch the agent work step by step, approve sensitive tool actions before they run, and attach files when the agent supports them.",
+        "The Threads screen is where you talk with your agents in real time. Replies stream in as they are generated, you can watch the agent work step by step, approve sensitive tool actions before they run, and attach files when the agent supports them.",
       ),
     ),
     para(
@@ -53,7 +53,7 @@ const orchestrationAndChat: DocChapter = {
 
     sub("Start a conversation"),
     steps(
-      [txt("Choose "), lbl("Orchestration"), txt(" in the left menu.")],
+      [txt("Choose "), lbl("Threads"), txt(" in the left menu.")],
       [txt("In the thread sidebar, press "), lbl("New Conversation"), txt(".")],
       [
         txt("In the "),

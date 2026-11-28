@@ -4,10 +4,10 @@ import { renderWithProviders } from "../../../utils/render";
 import MainHeader from "@/application/components/layout/MainHeader";
 
 describe("MainHeader", () => {
-  it("renders the page title for /chat route as 'Orchestration Console'", () => {
+  it("renders the page title for /chat route as 'Threads Console'", () => {
     renderWithProviders(<MainHeader />, { initialEntries: ["/chat"] });
 
-    expect(screen.getByRole("heading", { name: /orchestration console/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /threads console/i })).toBeInTheDocument();
   });
 
   it("renders the page title for /agents route as 'Active Agents'", () => {

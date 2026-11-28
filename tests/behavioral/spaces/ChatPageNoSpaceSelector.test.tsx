@@ -79,7 +79,7 @@ describe("ChatPage keeps no space notion and its agent chooser (REQ-023)", () =>
       document.querySelector('[data-od-id="space-selector"]'),
       "the chat page must not gain a space selector",
     ).toBeNull();
-    expect(screen.getByRole("heading", { name: /orchestration console/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /threads console/i })).toBeInTheDocument();
     await screen.findByText("No conversations yet");
   });
 

@@ -62,7 +62,7 @@ describe("ChatPage", () => {
       { initialEntries: ["/chat"] },
     );
 
-    expect(screen.getByRole("heading", { name: /orchestration console/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /threads console/i })).toBeInTheDocument();
     expect(screen.getByText(/start a new conversation with the \+ button/i)).toBeInTheDocument();
   });
 

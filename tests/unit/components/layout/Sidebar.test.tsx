@@ -30,10 +30,10 @@ describe("Sidebar", () => {
     expect(screen.getByText("UI")).toBeInTheDocument();
   });
 
-  it("renders the Orchestration nav link pointing to /chat", () => {
+  it("renders the Threads nav link pointing to /chat", () => {
     renderWithProviders(<Sidebar />, { initialEntries: ["/chat"] });
 
-    const link = screen.getByRole("link", { name: /orchestration/i });
+    const link = screen.getByRole("link", { name: /threads/i });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/chat");
     expect(link).toHaveAttribute("data-od-id", "nav-orchestration");

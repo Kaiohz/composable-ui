@@ -264,7 +264,7 @@ const agents: DocChapter = {
       ],
       [
         lbl("No agents available"),
-        txt(" in the Orchestration chooser means none exist yet; press "),
+        txt(" in the Threads chooser means none exist yet; press "),
         lbl("Create Agent"),
         txt(" here."),
       ],

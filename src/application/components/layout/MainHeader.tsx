@@ -16,7 +16,7 @@ const TITLE_MAP: readonly TitleEntry[] = [
     match: (p) => p.startsWith("/chat"),
     render: () => (
       <>
-        Orchestration <span className="text-accent">Console</span>
+        Threads <span className="text-accent">Console</span>
       </>
     ),
   },
