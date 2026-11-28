@@ -172,7 +172,7 @@ const crons: DocChapter = {
         txt("Each run also shows its thread-source pill ("),
         lbl("CRON"),
         txt(
-          ") — the run's conversation thread exists in Orchestration history — and a link that opens the run's trace in ",
+          ") — the run's conversation thread exists in Threads history — and a link that opens the run's trace in ",
         ),
         docLink("/documentation/traces", "Traces"),
         txt("."),

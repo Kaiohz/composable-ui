@@ -52,7 +52,7 @@ type Section = {
 
 export const DOC_SECTIONS: readonly Section[] = [
   { slug: "getting-started", title: /getting started/i },
-  { slug: "orchestration-and-chat", title: /orchestration/i },
+  { slug: "orchestration-and-chat", title: /threads/i },
   { slug: "agents", title: /agents/i },
   { slug: "prompts", title: /prompts/i },
   { slug: "models", title: /models/i },

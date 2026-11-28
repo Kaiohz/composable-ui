@@ -39,7 +39,7 @@ const CHAPTERS: readonly Chapter[] = [
   {
     doc: "DOC-02",
     slug: "orchestration-and-chat",
-    title: /orchestration/i,
+    title: /threads/i,
     requiredTopics: [/message/i, /thread/i, /approv|reject|review/i, /attach/i],
   },
   {

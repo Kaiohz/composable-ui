@@ -31,7 +31,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: readonly NavItem[] = [
-  { to: "/chat", label: "Orchestration", icon: MessagesSquare, odId: "nav-orchestration" },
+  { to: "/chat", label: "Threads", icon: MessagesSquare, odId: "nav-orchestration" },
   { to: "/agents", label: "Agents", icon: Bot, odId: "nav-agents" },
   { to: "/prompts", label: "Prompts", icon: FileText, odId: "nav-prompts" },
   { to: "/models", label: "Models", icon: Cpu, odId: "nav-models" },
