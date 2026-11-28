@@ -151,6 +151,7 @@ export default function MessageList({
   );
   const streamingTurn = useChatStore((s) => s.streamingTurn);
   const isStreaming = useChatStore((s) => s.isStreaming);
+  const handoffPending = useChatStore((s) => s.handoffPending);
   const pendingUserMessage = useChatStore((s) => s.pendingUserMessage);
   const pendingUserAttachments = useChatStore((s) => s.pendingUserAttachments);
   const error = useChatStore((s) => s.error);
@@ -168,6 +169,14 @@ export default function MessageList({
         : { toolCalls: [], toolResults: [] },
     [streamingTurn],
   );
+
+  // The streamed bubble hands the finished turn over to the HISTORY-rendered
+  // message when the refetch resolves: in that single commit the take-over
+  // message mounts fresh. Replaying the enter fade-in there is exactly the
+  // end-of-stream flicker (the bubble briefly reads as blank). While the
+  // hand-off flag holds (set by the turn-final AI event, reset by the next
+  // stream start), the take-over message mounts WITHOUT the animation.
+  const isHandoffCommit = streamingTurn !== null && handoffPending && !isStreaming && !isFetching;
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -242,6 +251,7 @@ export default function MessageList({
                 events={entry.events}
                 isLast={isLastAi}
                 expandThinking={isLastAi}
+                animate={!isHandoffCommit || !isLastAi}
               />
             );
           })}

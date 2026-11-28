@@ -398,3 +398,55 @@ describe("useChatStore", () => {
     });
   });
 });
+
+describe("useChatStore — handoffPending (end-of-stream flicker)", () => {
+  beforeEach(() => {
+    useChatStore.getState().clearStream();
+    useChatStore.setState({
+      activeThreadId: null,
+      streamingTurn: null,
+      isStreaming: false,
+      handoffPending: false,
+      pendingUserMessage: null,
+      error: null,
+    });
+  });
+
+  function seedTurn() {
+    useChatStore.setState({
+      isStreaming: true,
+      handoffPending: false,
+      streamingTurn: {
+        turnId: "turn-1",
+        events: [],
+        parentContent: "",
+        parentThinking: "",
+        subagents: {},
+        currentSource: null,
+      },
+    });
+  }
+
+  it("is false in the initial state and after clearStream", () => {
+    expect(useChatStore.getState().handoffPending).toBe(false);
+    useChatStore.setState({ handoffPending: true });
+    useChatStore.getState().clearStream();
+    expect(useChatStore.getState().handoffPending).toBe(false);
+  });
+
+  it("is set by the turn-final AI event and stays false during the stream", () => {
+    seedTurn();
+    useChatStore.getState().appendTraceEvent({
+      ...createTraceEvent(),
+      type: TraceEventType.CONTENT,
+      content: "partial",
+    });
+    expect(useChatStore.getState().handoffPending).toBe(false);
+
+    useChatStore
+      .getState()
+      .appendTraceEvent({ ...createTraceEvent(), type: TraceEventType.AI_MESSAGE, content: "{}" });
+    expect(useChatStore.getState().handoffPending).toBe(true);
+    expect(useChatStore.getState().isStreaming).toBe(false);
+  });
+});

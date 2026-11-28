@@ -48,6 +48,14 @@ interface ChatState {
   activeThreadId: string | null;
   streamingTurn: StreamingTurn | null;
   isStreaming: boolean;
+  /**
+   * True from the turn-final AI event until the next stream starts: the
+   * streamed bubble is about to hand off to the HISTORY-rendered message
+   * (refetch resolves → same-turn remount). While this flag holds, the
+   * message list suppresses the enter animation on that take-over message —
+   * the animated fade-in replay is what read as an end-of-stream flicker.
+   */
+  handoffPending: boolean;
   pendingUserMessage: string | null;
   /** Attachment metadata of the pending user message (REQ-069). */
   pendingUserAttachments: ChatAttachmentDisplay[] | null;
@@ -108,6 +116,7 @@ export const useChatStore = create<ChatState>((set) => ({
   activeThreadId: null,
   streamingTurn: null,
   isStreaming: false,
+  handoffPending: false,
   pendingUserMessage: null,
   pendingUserAttachments: null,
   composerBackup: null,
@@ -140,12 +149,14 @@ export const useChatStore = create<ChatState>((set) => ({
       return {
         streamingTurn: turn,
         isStreaming: !isAiMessage,
+        handoffPending: isAiMessage ? true : state.handoffPending,
       };
     }),
   clearStream: () =>
     set({
       streamingTurn: null,
       isStreaming: false,
+      handoffPending: false,
       pendingUserMessage: null,
       pendingUserAttachments: null,
       composerBackup: null,

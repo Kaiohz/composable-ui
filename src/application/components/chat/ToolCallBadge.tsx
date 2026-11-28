@@ -1,6 +1,7 @@
 import { useState, useId } from "react";
 import { ChevronDown, Wrench } from "lucide-react";
 import { cn } from "@/application/lib/utils";
+import { toolArgsDisplayText } from "@/application/lib/toolResultDisplay";
 
 interface ToolCallBadgeProps {
   name: string;
@@ -48,7 +49,7 @@ export default function ToolCallBadge({ name, args, source }: Readonly<ToolCallB
           id={panelId}
           className="overflow-x-auto whitespace-pre-wrap border-t border-border bg-bg px-3 py-2 text-xs text-fg-2"
         >
-          {args}
+          {toolArgsDisplayText(args)}
         </pre>
       )}
     </div>
