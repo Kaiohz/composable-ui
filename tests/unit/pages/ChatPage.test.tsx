@@ -63,7 +63,7 @@ describe("ChatPage", () => {
     );
 
     expect(screen.getByRole("heading", { name: /orchestration console/i })).toBeInTheDocument();
-    expect(screen.getByText(/select a thread from the sidebar/i)).toBeInTheDocument();
+    expect(screen.getByText(/start a new conversation with the \+ button/i)).toBeInTheDocument();
   });
 
   it("shows message list when threadId is provided", () => {

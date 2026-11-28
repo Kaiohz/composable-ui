@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { Menu } from "lucide-react";
+import { cn } from "@/application/lib/utils";
 import { Button } from "@/application/components/ui/button";
 import { useSidebarStore } from "@/application/stores/useSidebarStore";
+import ThreadTabs from "@/application/components/layout/ThreadTabs";
 
 interface TitleEntry {
   match: (pathname: string) => boolean;
@@ -85,11 +87,13 @@ function usePageTitle(): ReactNode {
 export default function MainHeader() {
   const open = useSidebarStore((s) => s.open);
   const title = usePageTitle();
+  const { pathname } = useLocation();
+  const showThreadTabs = pathname.startsWith("/chat");
 
   return (
     <header
       data-od-id="main-header"
-      className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-border bg-bg/80 px-4 backdrop-blur md:px-6"
+      className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border bg-bg/80 px-4 backdrop-blur md:px-6"
     >
       <div className="flex items-center gap-4">
         <Button
@@ -103,11 +107,16 @@ export default function MainHeader() {
         </Button>
         <h1
           data-od-id="page-title"
-          className="font-display text-base uppercase tracking-[0.06em] text-fg"
+          className={cn(
+            "font-display text-base uppercase tracking-[0.06em] text-fg",
+            // The thread tabs need the full header width on small screens.
+            showThreadTabs && "hidden md:block",
+          )}
         >
           {title}
         </h1>
       </div>
+      {showThreadTabs && <ThreadTabs />}
     </header>
   );
 }

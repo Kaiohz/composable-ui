@@ -2,7 +2,7 @@
  * Spec: scope-rag-memories-user-agent.md — REQ-023 (chat page regression
  * guard).
  *
- * Behavioral entry point: the REAL ChatPage (real ThreadSidebar + real hooks:
+ * Behavioral entry point: the REAL ChatPage (real header ThreadTabs + real hooks:
  * useThreads, useAgents, useCreateThread) under the real router route shape
  * (`/chat/:threadId?`); the network boundary is scripted (repo convention —
  * MSW is not installed in this repo).
@@ -11,7 +11,7 @@
  * - the chat page must NOT render the space selector (no space notion on the
  *   chat page — the agent scope is resolved server-side);
  * - the chat page must not even fetch the spaces list;
- * - the existing agent chooser in the ThreadSidebar stays as-is (agent
+ * - the existing agent chooser in the header thread tabs stays as-is (agent
  *   dialog, builtin-first ordering, builtin badge, thread creation).
  *
  * NOTE: absence assertions are also expected to pass in the RED phase (nothing
@@ -96,13 +96,13 @@ describe("ChatPage keeps no space notion and its agent chooser (REQ-023)", () =>
     ).toBeUndefined();
   });
 
-  it("keeps the ThreadSidebar agent chooser exactly as-is (builtin-first dialog + thread creation)", async () => {
+  it("keeps the header agent chooser exactly as-is (builtin-first dialog + thread creation)", async () => {
     const net = stubChatNetwork();
     const user = userEvent.setup();
     renderChat();
 
     await user.click(
-      await screen.findByRole("button", { name: "New Conversation" }, {}, { timeout: 2000 }),
+      await screen.findByRole("button", { name: "New conversation" }, {}, { timeout: 2000 }),
     );
     const dialog = await screen.findByRole("dialog", {}, { timeout: 2000 });
 
