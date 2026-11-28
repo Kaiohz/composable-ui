@@ -22,13 +22,15 @@ describe("ToolCallBadge", () => {
     renderWithProviders(<ToolCallBadge name="search" args='{"q":"test"}' source={null} />);
 
     const toggle = screen.getByRole("button", { name: /toggle args/i });
-    expect(screen.queryByText('{"q":"test"}')).not.toBeInTheDocument();
+    // The args block pretty-prints the JSON payload; while collapsed nothing
+    // shows.
+    expect(screen.queryByText(/"q": "test"/)).not.toBeInTheDocument();
 
     await user.click(toggle);
-    expect(screen.getByText('{"q":"test"}')).toBeInTheDocument();
+    expect(screen.getByText(/"q": "test"/)).toBeInTheDocument();
 
     await user.click(toggle);
-    expect(screen.queryByText('{"q":"test"}')).not.toBeInTheDocument();
+    expect(screen.queryByText(/"q": "test"/)).not.toBeInTheDocument();
   });
 
   it("does not render args section when args is null", () => {
