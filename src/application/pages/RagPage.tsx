@@ -17,6 +17,7 @@ import { useFiles } from "@/application/hooks/rag/useFiles";
 import { useClassicalIndexFile } from "@/application/hooks/rag/useClassicalIndexFile";
 import { useClassicalIndexFolder } from "@/application/hooks/rag/useClassicalIndexFolder";
 import { useReadFile } from "@/application/hooks/rag/useReadFile";
+import { useDefaultAgentScope } from "@/application/hooks/space/useDefaultAgentScope";
 import { useCreateFolder } from "@/application/hooks/rag/useCreateFolder";
 import { useDeleteFile } from "@/application/hooks/rag/useDeleteFile";
 import { useDeleteFolder } from "@/application/hooks/rag/useDeleteFolder";
@@ -59,6 +60,9 @@ export default function RagPage() {
   // storage scope from the authenticated identity, so every path on this page
   // stays RELATIVE to the selected space.
   const [spaceSlug, setSpaceSlug] = useState(PERSONAL_SLUG);
+  // User × agent scoping: personal is not selectable — default to the first
+  // data space once the payloads resolve.
+  useDefaultAgentScope(spaceSlug, setSpaceSlug);
   // In-space navigation prefix (scope-relative, e.g. "" or "zeta-docs/").
   const [currentPrefix, setCurrentPrefix] = useState("");
   // Project-level working directory (scope-relative, e.g. "" or "p1").

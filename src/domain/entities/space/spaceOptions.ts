@@ -10,8 +10,6 @@ export interface SpaceOption {
   readonly label: string;
 }
 
-const PERSONAL_OPTION: SpaceOption = { slug: PERSONAL_SLUG, label: "Personal" };
-
 const SLUG_MAX_LENGTH = 100;
 const DEGENERATE_SLUG_FALLBACK = "agent";
 const NON_SLUG_CHARS = /[^a-z0-9-]+/g;
@@ -59,14 +57,15 @@ function catalogSlugs(
 }
 
 /**
- * Order the selector options (REQ-021/REQ-026): `Personal` always first, then
- * the platform agents from the agent catalog (builtin agents ahead) — listed
+ * Order the selector options (REQ-021/REQ-026): NO Personal entry — every
+ * data space is scoped user × agent (user directive; the personal namespace
+ * stays a system-internal fallback). Platform agents from the agent catalog
+ * (builtin agents ahead) — listed
  * whether or not their space record exists yet, because the scoped storage is
  * composed server-side from the `X-Composable-Agent` header and the lazily
  * created space rows must not hide an agent — then the remaining space
  * records (external, lazily-created scopes) alphabetically. Duplicates
- * collapse; a payload `personal` row (REQ-019) is filtered so exactly ONE
- * Personal entry renders, first.
+ * collapse; a payload `personal` row (REQ-019) is filtered out.
  */
 export function buildSpaceOptions(
   spaces: readonly SpaceRecord[],
@@ -89,7 +88,6 @@ export function buildSpaceOptions(
   ].sort((a, b) => a.localeCompare(b));
 
   return [
-    PERSONAL_OPTION,
     ...platform.map(({ slug }) => ({ slug, label: slug }) satisfies SpaceOption),
     ...external.map((slug) => ({ slug, label: slug }) satisfies SpaceOption),
   ];

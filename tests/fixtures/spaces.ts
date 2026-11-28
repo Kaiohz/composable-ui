@@ -61,8 +61,9 @@ export const SCRAMBLED_SPACES: readonly SpaceRecord[] = [
 /**
  * Edge variant: the backend MAY include an explicit `personal` record (a
  * `POST /api/v1/spaces {"agent_slug": "personal"}` passes the charset
- * validator) — the selector must render exactly ONE Personal entry, FIRST,
- * while every other space survives (REQ-021).
+ * validator) — the selector must FILTER it out (the personal namespace is a
+ * system-internal fallback) while every other space survives (user × agent
+ * directive).
  */
 export const SPACES_WITH_PERSONAL: readonly SpaceRecord[] = [
   createSpaceRecord({ agent_slug: "opencode" }),
@@ -76,12 +77,10 @@ export const AGENTS_CATALOG: readonly AgentConfigMetadata[] = [
 ];
 
 /**
- * The space entries the selector must display, in the required order
- * (REQ-021/REQ-026): Personal first, builtin agents first (catalog), then
- * remaining platform agents, then external (lazily-created) space scopes.
+ * The scoped option list contract: platform agents (builtin first) then
+ * external space records — Personal is NOT an option anymore.
  */
 export const EXPECTED_SPACE_LABELS: readonly string[] = [
-  "Personal",
   "composable-ai-assistant",
   "agent-zeta",
   "opencode",
@@ -104,15 +103,19 @@ export interface RagContent {
  * the file browser shows the content of the SELECTED space only. Keyed by
  * agent slug (the `X-Composable-Agent` header value) then RELATIVE prefix —
  * the relative prefix `""` is the scope root of the selected space.
+ *
+ * `composable-ai-assistant` is the builtin-FIRST catalog agent — the page
+ * default (the personal namespace is not a selectable surface anymore), so
+ * its content is what the pages show before any user selection.
  */
 export const RAG_SCOPE_CONTENT: Record<string, Record<string, RagContent>> = {
-  personal: {
+  "composable-ai-assistant": {
     "": {
-      folders: ["knowledge/"],
+      folders: [],
       files: [
         {
-          object_name: `${USER_ID}/personal/personal-readme.md`,
-          size: 120,
+          object_name: `${USER_ID}/composable-ai-assistant/assistant-readme.md`,
+          size: 96,
           last_modified: "2026-11-01T08:00:00Z",
         },
       ],
@@ -152,14 +155,15 @@ export interface MemoriesContent {
   readonly previews: readonly MemoryPreview[];
 }
 
-/** Store listings by prefix: flat personal namespace vs agent-scoped namespace. */
+/** Store listings by prefix: agent-scoped namespaces (the flat personal
+ * namespace is kept as an edge fixture — the store's startswith filter leaks
+ * nested rows into the flat listing, REQ-012). */
 export const MEMORIES_BY_PREFIX: Record<string, MemoriesContent> = {
   // The composable-agents store listing is a plain startswith filter, so the
   // FLAT namespace returns the nested agent rows too — exactly what
   // mcp_memory_tools forbids surfacing ("one scope never merges into another",
   // REQ-012); the fixture keeps them (including a SAME-BASENAME collision:
-  // /memories/zeta-notes.md vs /memories/agent-zeta/zeta-notes.md) so the
-  // suite catches the leak AND the wrong-target reconstruction (N2/A-5).
+  // /memories/zeta-notes.md vs /memories/agent-zeta/zeta-notes.md).
   "/memories/": {
     files: [
       "/memories/user-prefs.md",
@@ -172,16 +176,34 @@ export const MEMORIES_BY_PREFIX: Record<string, MemoriesContent> = {
       { path: "/memories/agent-zeta/zeta-notes.md", preview: "Agent memory preview" },
     ],
   },
+  // The builtin-FIRST catalog agent — the page default (Personal is not a
+  // selectable surface anymore).
+  "/memories/composable-ai-assistant/": {
+    files: [
+      "/memories/composable-ai-assistant/assistant-prefs.md",
+      "/memories/composable-ai-assistant/assistant-log.md",
+    ],
+    previews: [
+      { path: "/memories/composable-ai-assistant/assistant-prefs.md", preview: "Assistant prefs preview" },
+      { path: "/memories/composable-ai-assistant/assistant-log.md", preview: "Assistant log preview" },
+    ],
+  },
   "/memories/agent-zeta/": {
-    files: ["/memories/agent-zeta/zeta-notes.md"],
-    previews: [{ path: "/memories/agent-zeta/zeta-notes.md", preview: "Agent memory preview" }],
+    // The same startswith leak exists INSIDE an agent scope: a nested
+    // `/memories/agent-zeta/archive/…` row also comes back — the grid must
+    // keep only direct children (isDirectMemoryChild, REQ-012).
+    files: ["/memories/agent-zeta/zeta-notes.md", "/memories/agent-zeta/archive/old-note.md"],
+    previews: [
+      { path: "/memories/agent-zeta/zeta-notes.md", preview: "Agent memory preview" },
+      { path: "/memories/agent-zeta/archive/old-note.md", preview: "Nested archive note" },
+    ],
   },
 };
 
 /** Full memory file bodies used by the Viewer (GET single store file). */
 export const MEMORY_FILES: Record<string, string> = {
-  "/memories/user-prefs.md": "# Personal prefs",
-  "/memories/zeta-notes.md": "# Personal zeta-notes",
+  "/memories/composable-ai-assistant/assistant-prefs.md": "# Assistant prefs",
+  "/memories/composable-ai-assistant/assistant-log.md": "# Assistant log",
   "/memories/agent-zeta/zeta-notes.md": "# Zeta notes",
 };
 

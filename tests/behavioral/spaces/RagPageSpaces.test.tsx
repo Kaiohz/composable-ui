@@ -1,6 +1,6 @@
 /**
  * Spec: scope-rag-memories-user-agent.md — REQ-021 (+ REQ-026 same-component
- * contract on the RAG page).
+ * contract on the RAG page), under the user × agent directive.
  *
  * Behavioral entry point: the REAL RagPage rendered with RTL and the real
  * provider chain (React Query + router, renderWithProviders). All internal
@@ -17,15 +17,18 @@
  * header — never a client-built `{user_id}/{agent_slug}/` key (REQ-002):
  * - a space selector rendered as a header bar ABOVE the file explorer,
  *   exposing `data-od-id="space-selector"`;
- * - listing all the user's real spaces (`GET /api/v1/spaces`): Personal
- *   first, builtin platform agents first among agents, external scopes;
+ * - NO Personal entry anywhere (the personal namespace is a system-internal
+ *   fallback): the pages DEFAULT to the first option of the ordered list
+ *   — the builtin-first catalog agent (`composable-ai-assistant`);
+ * - listing all the user's real spaces (`GET /api/v1/spaces`): builtin
+ *   platform agents first among agents, external scopes;
  * - selection scopes file browsing (RELATIVE `prefix` args + scope header to
  *   useFiles / useFolders), folder creation, file deletion, upload and
  *   classical indexing/queries;
  * - the existing WorkspaceSelector stays the project-level selector BELOW the
  *   space on the Query tab;
  * - selection persists within the page; graceful degradation when the spaces
- *   endpoint fails.
+ *   endpoint fails (the agent catalog still defaults the browsing scope).
  */
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -51,7 +54,7 @@ import {
 
 /** Scope-RELATIVE prefixes: the space root of ANY selected space is "". */
 const ROOT_PREFIX = "";
-const PERSONAL_SCOPE_HEADER = "personal";
+const DEFAULT_SCOPE_HEADER = "composable-ai-assistant";
 const AGENT_SCOPE_HEADER = "agent-zeta";
 
 function stubRagNetwork(spaces: readonly SpaceRecord[] = SCRAMBLED_SPACES): StubbedNetwork {
@@ -95,7 +98,7 @@ describe("RagPage space selector header bar (REQ-021)", () => {
     stubRagNetwork();
     renderWithProviders(<RagPage />, { initialEntries: ["/rag"] });
 
-    await findByText("personal-readme.md");
+    await findByText("assistant-readme.md");
 
     const bar = document.querySelector<HTMLElement>('[data-od-id="space-selector"]');
     expect(bar, "RAG page must render the shared space selector").not.toBeNull();
@@ -104,36 +107,46 @@ describe("RagPage space selector header bar (REQ-021)", () => {
     expect(bar!.compareDocumentPosition(explorer!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("defaults to the Personal space and scopes file browsing to {user_id}/personal/", async () => {
+  it("defaults to the FIRST agent space (builtin composable-ai-assistant) and scopes browsing to it — Personal is never an option", async () => {
     const net = stubRagNetwork();
     renderWithProviders(<RagPage />, { initialEntries: ["/rag"] });
 
-    await findByText("personal-readme.md");
+    await findByText("assistant-readme.md");
 
-    // The relative scope-root prefix "" + the Personal scope header compose
-    // the {user_id}/personal/ namespace SERVER-SIDE (REQ-001/REQ-003).
+    // The relative scope-root prefix "" + the default agent scope header
+    // (builtin-first catalog agent) compose the
+    // {user_id}/composable-ai-assistant/ namespace SERVER-SIDE
+    // (REQ-001/REQ-003 + user × agent directive).
     const scopedLists = listRequests(net).filter(
       (req) =>
         req.query.prefix === ROOT_PREFIX &&
-        req.headers["x-composable-agent"] === PERSONAL_SCOPE_HEADER,
+        req.headers["x-composable-agent"] === DEFAULT_SCOPE_HEADER,
     );
     expect(
       scopedLists.length,
-      "the file list request must browse the scope root with the Personal scope header",
+      "the file list request must browse the scope root with the default agent scope header",
     ).toBeGreaterThan(0);
     const scopedFolders = net.requests.find(
       (req) =>
         /\/api\/v1\/files\/folders$/.test(req.path) &&
         req.query.prefix === ROOT_PREFIX &&
-        req.headers["x-composable-agent"] === PERSONAL_SCOPE_HEADER,
+        req.headers["x-composable-agent"] === DEFAULT_SCOPE_HEADER,
     );
-    expect(scopedFolders, "folder listing must carry the Personal scope header").toBeDefined();
+    expect(
+      scopedFolders,
+      "folder listing must carry the default agent scope header",
+    ).toBeDefined();
+
+    const user = userEvent.setup();
+    await user.click(getSpaceTrigger());
+    expect(await screen.findByRole("option", { name: /composable-ai-assistant/i })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /personal/i })).toBeNull();
   });
 
   it("selecting agent-zeta re-scopes browsing, shows the agent's content, and navigates inside the space", async () => {
     const net = stubRagNetwork();
     renderWithProviders(<RagPage />, { initialEntries: ["/rag"] });
-    await findByText("personal-readme.md");
+    await findByText("assistant-readme.md");
 
     await selectSpace(/agent-zeta/i);
 
@@ -152,28 +165,28 @@ describe("RagPage space selector header bar (REQ-021)", () => {
     expect(navigated?.headers["x-composable-agent"]).toBe(AGENT_SCOPE_HEADER);
   });
 
-  it("selecting Personal switches the browsing scope back to {user_id}/personal/", async () => {
+  it("selecting another agent switches the browsing scope back (and Personal stays unreachable)", async () => {
     const net = stubRagNetwork();
     renderWithProviders(<RagPage />, { initialEntries: ["/rag"] });
-    await findByText("personal-readme.md");
+    await findByText("assistant-readme.md");
 
     await selectSpace(/agent-zeta/i);
     await findByText("zeta-readme.md");
 
-    await selectSpace(/Personal/);
+    await selectSpace(/composable-ai-assistant/i);
 
-    expect(await findByText("personal-readme.md")).toBeInTheDocument();
+    expect(await findByText("assistant-readme.md")).toBeInTheDocument();
     expect(screen.queryByText("zeta-readme.md")).toBeNull();
     const lastListRequest = listRequests(net).at(-1);
     expect(lastListRequest?.query.prefix).toBe(ROOT_PREFIX);
-    expect(lastListRequest?.headers["x-composable-agent"]).toBe(PERSONAL_SCOPE_HEADER);
+    expect(lastListRequest?.headers["x-composable-agent"]).toBe(DEFAULT_SCOPE_HEADER);
   });
 
   it("keeps the selected space when switching tabs and returning to Browse", async () => {
     stubRagNetwork();
     const user = userEvent.setup();
     renderWithProviders(<RagPage />, { initialEntries: ["/rag"] });
-    await findByText("personal-readme.md");
+    await findByText("assistant-readme.md");
 
     await selectSpace(/agent-zeta/i);
     await findByText("zeta-readme.md");
@@ -185,14 +198,14 @@ describe("RagPage space selector header bar (REQ-021)", () => {
       await findByText("zeta-readme.md"),
       "the agent space selection must persist within the page",
     ).toBeInTheDocument();
-    expect(screen.queryByText("personal-readme.md")).toBeNull();
+    expect(screen.queryByText("assistant-readme.md")).toBeNull();
   });
 
   it("resets the project workingDir when the space changes (the new scope starts at its root)", async () => {
     const net = stubRagNetwork();
     const user = userEvent.setup();
     renderWithProviders(<RagPage />, { initialEntries: ["/rag"] });
-    await findByText("personal-readme.md");
+    await findByText("assistant-readme.md");
 
     await selectSpace(/agent-zeta/i);
     await findByText("zeta-readme.md");
@@ -212,8 +225,8 @@ describe("RagPage space selector header bar (REQ-021)", () => {
     // Switching space drops the project of the previous one: it would
     // otherwise target {user_id}/{new_slug}/{old_project}/ server-side.
     await user.click(screen.getByRole("tab", { name: /browse/i }));
-    await selectSpace(/Personal/);
-    await findByText("personal-readme.md");
+    await selectSpace(/composable-ai-assistant/i);
+    await findByText("assistant-readme.md");
     await user.click(screen.getByRole("tab", { name: /query/i }));
     expect(screen.getByRole("combobox", { name: /workspace/i })).toHaveValue("");
 
@@ -230,7 +243,7 @@ describe("RagPage space selector header bar (REQ-021)", () => {
     const net = stubRagNetwork();
     const user = userEvent.setup();
     renderWithProviders(<RagPage />, { initialEntries: ["/rag"] });
-    await findByText("personal-readme.md");
+    await findByText("assistant-readme.md");
 
     await selectSpace(/agent-zeta/i);
     await user.click(screen.getByRole("tab", { name: /query/i }));
@@ -260,7 +273,7 @@ describe("RagPage space selector header bar (REQ-021)", () => {
     const net = stubRagNetwork();
     const user = userEvent.setup();
     renderWithProviders(<RagPage />, { initialEntries: ["/rag"] });
-    await findByText("personal-readme.md");
+    await findByText("assistant-readme.md");
 
     await selectSpace(/agent-zeta/i);
     await findByText("zeta-readme.md");
@@ -312,7 +325,7 @@ describe("RagPage space selector header bar (REQ-021)", () => {
     const net = stubRagNetwork();
     const user = userEvent.setup();
     renderWithProviders(<RagPage />, { initialEntries: ["/rag"] });
-    await findByText("personal-readme.md");
+    await findByText("assistant-readme.md");
 
     await selectSpace(/agent-zeta/i);
     await findByText("zeta-readme.md");
@@ -345,7 +358,7 @@ describe("RagPage space selector header bar (REQ-021)", () => {
     const net = stubRagNetwork();
     const user = userEvent.setup();
     renderWithProviders(<RagPage />, { initialEntries: ["/rag"] });
-    await findByText("personal-readme.md");
+    await findByText("assistant-readme.md");
 
     await selectSpace(/agent-zeta/i);
     await findByText("zeta-readme.md");
@@ -363,7 +376,7 @@ describe("RagPage space selector header bar (REQ-021)", () => {
     );
   });
 
-  it("degrades gracefully when GET /api/v1/spaces fails: personal scope keeps working", async () => {
+  it("degrades gracefully when GET /api/v1/spaces fails: the agent catalog still defaults the browsing scope", async () => {
     // Retarget ONLY the spaces route of the fixture set (identify it by its
     // client + path pattern — regex `.source` keeps the escaped slashes, so a
     // bare `/…/.test(source)` can never match).
@@ -375,14 +388,17 @@ describe("RagPage space selector header bar (REQ-021)", () => {
     const net = stubNetwork([...ragRoutes(RAG_SCOPE_CONTENT), ...failingSpaces]);
     renderWithProviders(<RagPage />, { initialEntries: ["/rag"] });
 
-    await findByText("personal-readme.md");
+    await findByText("assistant-readme.md");
 
     const scoped = listRequests(net).filter(
       (req) =>
         req.query.prefix === ROOT_PREFIX &&
-        req.headers["x-composable-agent"] === PERSONAL_SCOPE_HEADER,
+        req.headers["x-composable-agent"] === DEFAULT_SCOPE_HEADER,
     );
-    expect(scoped.length, "browsing must fall back to the personal scope").toBeGreaterThan(0);
+    expect(
+      scoped.length,
+      "browsing must default to the builtin-first agent scope even while spaces fail",
+    ).toBeGreaterThan(0);
 
     const bar = document.querySelector<HTMLElement>('[data-od-id="space-selector"]');
     expect(bar).not.toBeNull();
