@@ -225,16 +225,26 @@ export default function MessageList({
 
   const hasMessages = entries.length > 0;
   const threadSource = threadHistory?.thread?.source;
+  /** The agent this THREAD was created with (per-thread — the `agentName`
+      prop is the currently viewed agent, not this thread's). */
+  const threadAgentName = threadHistory?.thread?.agent_name?.trim() || null;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-bg">
-      {threadSource && (
+      {(threadSource || threadAgentName) && (
         <div
           data-od-id="thread-header"
           className="flex shrink-0 items-center gap-2 border-b border-border-soft px-4 py-2 md:px-6"
         >
-          <ThreadSourceBadge source={threadSource} />
-          <span className="font-mono text-xs uppercase tracking-[0.1em] text-muted">Thread</span>
+          {threadSource && <ThreadSourceBadge source={threadSource} />}
+          {threadAgentName && (
+            <span
+              data-od-id="thread-agent-name"
+              className="font-mono text-xs uppercase tracking-[0.1em] text-accent"
+            >
+              {threadAgentName}
+            </span>
+          )}
         </div>
       )}
       <div ref={scrollRef} className="flex flex-1 flex-col gap-5 overflow-y-auto bg-bg p-4 md:p-6">

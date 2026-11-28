@@ -213,3 +213,20 @@ describe("MessageList — end-of-stream handoff (animation suppression)", () => 
     expect(document.querySelectorAll(".animate-chat-msg-enter")).toHaveLength(2);
   });
 });
+
+describe("MessageList — thread header agent name", () => {
+  it("shows the thread's agent name alone (no redundant Thread caption)", () => {
+    const thread = createThreadHistory().thread;
+    useChatStore.setState({
+      isStreaming: false,
+      handoffPending: false,
+      streamingTurn: null,
+    });
+    renderWithProviders(<MessageList threadId="thread-1" agentName="other-agent" />);
+
+    const header = document.querySelector('[data-od-id="thread-header"]');
+    expect(header).not.toBeNull();
+    expect(header?.textContent).toContain(thread.agent_name);
+    expect(header?.textContent).not.toContain("Thread ·");
+  });
+});
