@@ -211,7 +211,8 @@ describe("MessageList — end-of-stream handoff (animation suppression)", () => 
 
     // No streaming turn → not a hand-off: both messages animate normally.
     expect(document.querySelectorAll(".animate-chat-msg-enter")).toHaveLength(2);
-||||||| parent of d732f96 (✨ feat(chat): show the thread's agent name in the thread header — drop the redundant 'Thread' caption)
+  });
+});
 
 describe("MessageList — thread header agent name", () => {
   it("shows the thread's agent name alone (no redundant Thread caption)", () => {
