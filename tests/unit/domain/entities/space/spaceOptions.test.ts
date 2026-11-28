@@ -28,13 +28,12 @@ describe("agentScopeSlug", () => {
 });
 
 describe("buildSpaceOptions", () => {
-  it("lists Personal + every catalog agent (builtin first), external space records last", () => {
+  it("lists every catalog agent (builtin first), external space records last — no Personal", () => {
     const options = buildSpaceOptions(
       [space("zzz-external"), space("zzz-external"), space("personal")],
       [agent("zzz-internal"), agent("composable-ai-assistant", true), agent("aaa-custom")],
     );
     expect(options.map((o) => o.slug)).toEqual([
-      "personal",
       "composable-ai-assistant",
       "aaa-custom",
       "zzz-internal",
@@ -47,15 +46,11 @@ describe("buildSpaceOptions", () => {
       [],
       [agent("composable-ai-assistant", true), agent("agent-zeta")],
     );
-    expect(options.map((o) => o.slug)).toEqual([
-      "personal",
-      "composable-ai-assistant",
-      "agent-zeta",
-    ]);
+    expect(options.map((o) => o.slug)).toEqual(["composable-ai-assistant", "agent-zeta"]);
   });
 
-  it("degrades to Personal + external spaces when the catalog is unavailable", () => {
+  it("degrades to external spaces only when the catalog is unavailable", () => {
     const options = buildSpaceOptions([space("opencode"), space("personal")], undefined);
-    expect(options.map((o) => o.slug)).toEqual(["personal", "opencode"]);
+    expect(options.map((o) => o.slug)).toEqual(["opencode"]);
   });
 });

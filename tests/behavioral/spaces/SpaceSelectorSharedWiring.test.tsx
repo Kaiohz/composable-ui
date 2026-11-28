@@ -18,7 +18,7 @@
  * RED (TDD step 1) failure mode: the pages do not import the shared module
  * yet, so the marker never renders.
  */
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import RagPage from "@/application/pages/RagPage";
 import MemoriesPage from "@/application/pages/MemoriesPage";
@@ -54,7 +54,10 @@ describe("one shared SpaceSelector module is wired into both pages (REQ-026)", (
 
     const wired = await screen.findByText("space-selector-shared-stub");
     expect(wired).toHaveAttribute("data-od-id", "space-selector-wired");
-    expect(wired).toHaveAttribute("data-space-value", "personal");
+    // User × agent directive: the pages default the selection to the FIRST
+    // data option (builtin-first catalog agent) once the payloads resolve —
+    // never the system-internal personal namespace.
+    await waitFor(() => expect(wired).toHaveAttribute("data-space-value", "composable-ai-assistant"));
   });
 
   it("MemoriesPage renders the same shared SpaceSelector with the selected space as its value", async () => {
@@ -63,7 +66,7 @@ describe("one shared SpaceSelector module is wired into both pages (REQ-026)", (
 
     const wired = await screen.findByText("space-selector-shared-stub");
     expect(wired).toHaveAttribute("data-od-id", "space-selector-wired");
-    expect(wired).toHaveAttribute("data-space-value", "personal");
+    await waitFor(() => expect(wired).toHaveAttribute("data-space-value", "composable-ai-assistant"));
   });
 
   it("renders exactly ONE space selector per page", async () => {

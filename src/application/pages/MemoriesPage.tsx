@@ -5,6 +5,7 @@ import MemoryGrid from "@/application/components/memory/MemoryGrid";
 import CreateMemoryDialog from "@/application/components/memory/CreateMemoryDialog";
 import MemoryViewer from "@/application/components/memory/MemoryViewer";
 import SpaceSelector from "@/application/components/shared/SpaceSelector";
+import { useDefaultAgentScope } from "@/application/hooks/space/useDefaultAgentScope";
 import { useStoreFiles } from "@/application/hooks/store/useStoreFiles";
 import { isDirectMemoryChild, memoriesNamespacePrefix } from "@/domain/entities/space/memoryPaths";
 import { PERSONAL_SLUG } from "@/domain/entities/space/spaceRecord";
@@ -13,6 +14,9 @@ import { Button } from "@/application/components/ui/button";
 
 export default function MemoriesPage() {
   const [spaceSlug, setSpaceSlug] = useState(PERSONAL_SLUG);
+  // User × agent scoping: personal is not selectable — default to the first
+  // data space once the payloads resolve.
+  useDefaultAgentScope(spaceSlug, setSpaceSlug);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [viewerMemory, setViewerMemory] = useState<string | null>(null);
   // REQ-022: the grid and every page action operate within the selected
