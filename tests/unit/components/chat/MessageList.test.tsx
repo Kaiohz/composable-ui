@@ -174,3 +174,42 @@ describe("MessageList", () => {
     expect(hitlPanelCount(container)).toBe(0);
   });
 });
+
+describe("MessageList — end-of-stream handoff (animation suppression)", () => {
+  function seedHandoff(keepStreamingTurn: boolean, handoffPending: boolean) {
+    useChatStore.setState({
+      isStreaming: false,
+      handoffPending,
+      streamingTurn: keepStreamingTurn
+        ? {
+            turnId: "turn-local",
+            events: [],
+            parentContent: "",
+            parentThinking: "",
+            subagents: {},
+            currentSource: null,
+          }
+        : null,
+    });
+  }
+
+  it("mounts the take-over AI message WITHOUT the enter animation during the hand-off commit", () => {
+    mockHistory = createThreadHistory();
+    seedHandoff(true, true);
+    renderWithProviders(<MessageList threadId="thread-1" agentName="test-agent" />);
+
+    const animated = document.querySelectorAll(".animate-chat-msg-enter");
+    // The HUMAN message keeps its animation; the streamed AI take-over does
+    // not replay it (that replay was the end-of-stream flicker).
+    expect(animated).toHaveLength(1);
+  });
+
+  it("keeps the enter animation for every message outside a hand-off", () => {
+    mockHistory = createThreadHistory();
+    seedHandoff(false, true);
+    renderWithProviders(<MessageList threadId="thread-1" agentName="test-agent" />);
+
+    // No streaming turn → not a hand-off: both messages animate normally.
+    expect(document.querySelectorAll(".animate-chat-msg-enter")).toHaveLength(2);
+  });
+});
