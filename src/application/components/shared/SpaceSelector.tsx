@@ -23,10 +23,10 @@ interface SpaceSelectorProps {
 /**
  * Shared space selector (REQ-026) — ONE component for the RAG and Memories
  * pages, rendered as a header bar above the explorer/grid. Built exclusively
- * on the existing design-system select primitives and tokens: it lists every
- * real space of the caller (`GET /api/v1/spaces`) with `Personal` first and
- * platform agents ordered builtin-first (`GET /api/v1/agents`), degrading to
- * an error notice (selector intact) when the spaces endpoint fails.
+ * on the existing design-system select primitives and tokens: it lists the
+ * caller's platform agents (from `GET /api/v1/agents`, builtin-first) plus
+ * every extra space record (`GET /api/v1/spaces`) — `Personal` first. Degrades
+ * to an error notice (selector intact) when the spaces endpoint fails.
  */
 export default function SpaceSelector({ value, onChange }: Readonly<SpaceSelectorProps>) {
   const spacesQuery = useSpaces();

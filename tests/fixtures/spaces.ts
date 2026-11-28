@@ -77,8 +77,8 @@ export const AGENTS_CATALOG: readonly AgentConfigMetadata[] = [
 
 /**
  * The space entries the selector must display, in the required order
- * (REQ-021/REQ-026): Personal first, builtin agents first among agents,
- * external (lazily-created) scopes as ordinary space entries.
+ * (REQ-021/REQ-026): Personal first, builtin agents first (catalog), then
+ * remaining platform agents, then external (lazily-created) space scopes.
  */
 export const EXPECTED_SPACE_LABELS: readonly string[] = [
   "Personal",

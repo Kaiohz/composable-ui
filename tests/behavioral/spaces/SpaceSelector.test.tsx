@@ -13,9 +13,11 @@
  *   (`src/application/components/ui/select.tsx`) — no new dependency;
  * - WAI-ARIA labelling consistent with `WorkspaceSelector` (`sr-only`,
  *   `aria-*`) with `data-od-id="space-selector"`;
- * - lists all the user's real spaces from `GET /api/v1/spaces`: `Personal`
- *   first, builtin platform agents first among agents, external (lazily
- *   created) scopes as ordinary space entries — exactly one Personal entry.
+ * - options: Personal first, platform agents from the agent catalog
+ *   (builtin agents first — listed whether or not their space row exists,
+ *   scoped storage being composed server-side), then the remaining `GET
+ *   /api/v1/spaces` records (external, lazily created scopes) — exactly
+ *   one Personal entry.
  */
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -158,7 +160,10 @@ describe("SpaceSelector (REQ-026 — one shared, design-system-compliant compone
     await waitFor(() => expect(bar.textContent).toMatch(/failed|unable|error|retry/i));
   });
 
-  it("offers only the Personal space when the user has no other space yet", async () => {
+  it("lists the platform agents from the catalog even before any space record exists (builtin first)", async () => {
+    // The user's real prod case: no rag_spaces rows provisioned yet, but the
+    // agent catalog is authoritative — scoped storage is composed server-side
+    // from the header, so agents must not vanish from the selector.
     stubSpaces([]);
     renderWithProviders(<SpaceSelector value="personal" onChange={() => {}} />);
 
@@ -167,8 +172,7 @@ describe("SpaceSelector (REQ-026 — one shared, design-system-compliant compone
     const labels = within(listbox)
       .getAllByRole("option")
       .map((option) => option.textContent ?? "");
-    expect(labels).toHaveLength(1);
-    expect(labels[0]).toContain("Personal");
+    expect(labels).toEqual(EXPECTED_SPACE_LABELS.slice(0, 3));
   });
 
   it("renders exactly one Personal entry even when the backend includes a personal record", async () => {
@@ -180,9 +184,12 @@ describe("SpaceSelector (REQ-026 — one shared, design-system-compliant compone
     const labels = within(listbox)
       .getAllByRole("option")
       .map((option) => option.textContent ?? "");
-    expect(labels).toHaveLength(2);
+    expect(labels).toHaveLength(4);
     expect(labels[0]).toContain("Personal");
-    // The OTHER spaces must survive the personal row (REQ-021: all real spaces).
-    expect(labels[1]).toContain("opencode");
+    // The OTHER entries must survive the personal row: catalog agents first,
+    // then the external space record (REQ-021).
+    expect(labels[1]).toContain("composable-ai-assistant");
+    expect(labels[2]).toContain("agent-zeta");
+    expect(labels[3]).toContain("opencode");
   });
 });
